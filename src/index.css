@@ -101,9 +101,6 @@ html[data-theme='light'] .app-sidebar {
 
 html[data-theme='light'] .brand-logo-wrap {
   display: inline-flex;
-  border-radius: 12px;
-  background: #101114;
-  padding: 6px 7px;
 }
 
 html[data-theme='light'] .app-header {
