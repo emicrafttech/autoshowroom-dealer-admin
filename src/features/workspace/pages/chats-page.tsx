@@ -1,12 +1,11 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import {
   Calendar,
   Car,
   MessageCircle,
-  MoreHorizontal,
   Paperclip,
   Search,
   Send,
@@ -16,7 +15,13 @@ import {
 import { BlurImage } from "@/components/blur-image";
 import { Badge, Button, Input } from "@/components/ui";
 import { ChatConversationList } from "@/features/workspace/components/chats/chat-conversation-list";
+import { uploadChatAttachment } from "@/features/workspace/components/chats/chat-attachments";
+import { BuyerAvatar, buyerDisplayName } from "@/features/workspace/components/chats/buyer-avatar";
 import { ChatMessagePanel } from "@/features/workspace/components/chats/chat-message-panel";
+import {
+  isUnreadConversation,
+  useDealerChats,
+} from "@/features/workspace/components/chats/use-dealer-chats";
 import type {
   ChatMessage,
   Conversation,
@@ -33,26 +38,9 @@ import { cn, formatCompactNgn, formatDate, unwrapList } from "@/lib/utils";
 type ChatFilter = "all" | "unread" | "booked";
 
 function buyerName(conversation?: Conversation) {
-  return (
-    conversation?.buyer?.name?.trim() ||
-    conversation?.buyer?.phone ||
-    "Select a buyer"
-  );
-}
-
-function buyerInitials(conversation?: Conversation) {
-  return (
-    buyerName(conversation)
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join("") || "B"
-  );
-}
-
-function isUnread(conversation: Conversation) {
-  return conversation.messages.at(-1)?.senderType === "buyer";
+  return buyerDisplayName(conversation?.buyer) === "Buyer"
+    ? "Select a buyer"
+    : buyerDisplayName(conversation?.buyer);
 }
 
 function EmptyInboxSkeleton() {
@@ -161,24 +149,62 @@ export function ChatsPage() {
   const [liveMessages, setLiveMessages] = useState<ChatMessage[]>([]);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
+  const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchParams] = useSearchParams();
   const paramConversationId = searchParams.get("conversation");
-  const chats = useQuery({
-    queryKey: ["dealer-chats"],
-    queryFn: () =>
-      api<Conversation[] | Paginated<Conversation>>("/v1/dealers/me/chats"),
+  const chats = useDealerChats();
+  const markRead = useMutation({
+    mutationFn: (conversationId: string) =>
+      post<Conversation>(`/v1/dealers/me/chats/${conversationId}/read`),
+    onSuccess: (conversation) => {
+      queryClient.setQueryData(
+        ["dealer-chats"],
+        (current?: Conversation[] | Paginated<Conversation>) => {
+          if (!current) return current;
+          const updateConversation = (items: Conversation[]) =>
+            items.map((item) =>
+              item.id === conversation.id ? conversation : item,
+            );
+          if (Array.isArray(current)) return updateConversation(current);
+          return {
+            ...current,
+            results: updateConversation(current.results),
+          };
+        },
+      );
+    },
   });
   const sendMessage = useMutation({
-    mutationFn: () =>
-      post<Conversation>(`/v1/dealers/me/chats/${selectedChatId}/respond`, {
+    mutationFn: async () => {
+      let attachmentUrl = "";
+      if (pendingAttachment) {
+        setUploadingAttachment(true);
+        attachmentUrl = await uploadChatAttachment(
+          selectedChatId,
+          pendingAttachment,
+        );
+      }
+      return post<Conversation>(`/v1/dealers/me/chats/${selectedChatId}/respond`, {
         message: draft,
-      }),
+        ...(attachmentUrl ? { attachmentUrl } : {}),
+      });
+    },
     onSuccess: (conversation) => {
       setDraft("");
+      setPendingAttachment(null);
+      if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+      setAttachmentPreview(null);
+      setUploadingAttachment(false);
       setLiveMessages(conversation.messages);
       queryClient.invalidateQueries({ queryKey: ["dealer-chats"] });
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) => {
+      setUploadingAttachment(false);
+      toast.error(error.message);
+    },
   });
   const updateVehicleStatus = useMutation({
     mutationFn: ({
@@ -238,7 +264,7 @@ export function ChatsPage() {
     const matchesSearch = !query || `${vehicle} ${buyer}`.includes(query);
     const matchesFilter =
       filter === "all" ||
-      (filter === "unread" && isUnread(conversation)) ||
+      (filter === "unread" && isUnreadConversation(conversation)) ||
       (filter === "booked" && Boolean(conversation.bookingId));
     return matchesSearch && matchesFilter;
   });
@@ -247,7 +273,7 @@ export function ChatsPage() {
     filteredConversations[0];
   const selectedVehicle = selectedConversation?.vehicle;
   const isVehicleSold = selectedVehicle?.status === "sold";
-  const unreadCount = conversations.filter(isUnread).length;
+  const unreadCount = conversations.filter(isUnreadConversation).length;
   const bookedCount = conversations.filter(
     (conversation) => conversation.bookingId,
   ).length;
@@ -273,6 +299,13 @@ export function ChatsPage() {
   }, [selectedConversation?.messages]);
 
   useEffect(() => {
+    if (!selectedChatId) return;
+    const conversation = conversations.find((item) => item.id === selectedChatId);
+    if (!conversation || !isUnreadConversation(conversation)) return;
+    markRead.mutate(selectedChatId);
+  }, [selectedChatId, conversations]);
+
+  useEffect(() => {
     if (!selectedConversation?.vehicle?.id || !selectedConversation.id) return;
     const token = getAccessToken();
     if (!token) return;
@@ -290,15 +323,38 @@ export function ChatsPage() {
             ? current
             : [...current, nextMessage],
         );
+        if (nextMessage.senderType === "buyer") {
+          markRead.mutate(selectedConversation.id);
+        }
+        queryClient.invalidateQueries({ queryKey: ["dealer-chats"] });
       }
     };
     return () => socket.close();
   }, [selectedConversation?.id, selectedConversation?.vehicle?.id]);
 
+  function handleAttachmentChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image attachments are supported in chat.");
+      return;
+    }
+    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+    setPendingAttachment(file);
+    setAttachmentPreview(URL.createObjectURL(file));
+  }
+
+  const canSend =
+    Boolean(selectedConversation) &&
+    !sendMessage.isPending &&
+    !uploadingAttachment &&
+    (draft.trim().length > 0 || pendingAttachment != null);
+
   return (
     <div
       className={cn(
-        "-m-5 grid h-[calc(100dvh-73px)] min-h-[min(720px,calc(100dvh-73px))] max-h-[calc(100dvh-92px)] overflow-hidden lg:-m-7 xl:-m-8",
+        "-m-5 grid h-[calc(100dvh-73px)] min-h-[min(720px,calc(100dvh-73px))] max-h-[calc(100dvh-92px)] grid-rows-1 overflow-hidden lg:-m-7 xl:-m-8",
         hasConversations
           ? "xl:grid-cols-[330px_minmax(420px,1fr)_300px]"
           : "xl:grid-cols-[330px_minmax(520px,1fr)]",
@@ -362,12 +418,10 @@ export function ChatsPage() {
       {!hasConversations ? <EmptyChatState /> : null}
 
       {hasConversations ? (
-      <section className="flex min-h-0 flex-col border-r border-white/8">
-        <div className="flex items-center justify-between gap-4 border-b border-white/8 px-5 py-4">
+      <section className="flex min-h-0 flex-col overflow-hidden border-r border-white/8">
+        <div className="flex shrink-0 items-center gap-4 border-b border-white/8 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/8 font-display text-[13px] font-bold text-lime-200">
-              {buyerInitials(selectedConversation)}
-            </div>
+            <BuyerAvatar buyer={selectedConversation?.buyer} />
             <div className="min-w-0">
               <div className="truncate font-display text-[17px] font-semibold tracking-[-0.02em] text-white">
                 {buyerName(selectedConversation)}
@@ -378,20 +432,9 @@ export function ChatsPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              aria-label="More chat actions"
-              className="h-9 w-9 px-0"
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
 
-        <div className="min-h-0 flex-1 px-5 py-5">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-5">
           <ChatMessagePanel
             conversation={selectedConversation}
             messages={liveMessages}
@@ -401,37 +444,68 @@ export function ChatsPage() {
         </div>
 
         <form
-          className="mx-5 mb-4 flex gap-3 rounded-[16px] border border-white/8 bg-black/25 p-2"
+          className="mx-5 mb-4 flex shrink-0 flex-col gap-3 rounded-[16px] border border-white/8 bg-black/25 p-2"
           onSubmit={(event) => {
             event.preventDefault();
-            if (draft.trim() && selectedConversation) sendMessage.mutate();
+            if (canSend) sendMessage.mutate();
           }}
         >
+          {attachmentPreview ? (
+            <div className="flex items-center gap-3 px-2 pt-2">
+              <div className="h-16 w-16 overflow-hidden rounded-[12px] bg-black/40">
+                <img
+                  alt="Attachment preview"
+                  className="h-full w-full object-cover"
+                  src={attachmentPreview}
+                />
+              </div>
+              <div className="min-w-0 flex-1 text-[12px] font-medium text-neutral-400">
+                Image ready to send
+              </div>
+              <Button
+                className="h-8 px-3"
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setPendingAttachment(null);
+                  if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+                  setAttachmentPreview(null);
+                }}
+              >
+                Remove
+              </Button>
+            </div>
+          ) : null}
+          <div className="flex gap-3">
+          <input
+            accept="image/*"
+            className="hidden"
+            ref={fileInputRef}
+            type="file"
+            onChange={handleAttachmentChange}
+          />
           <Button
-            aria-label="Attach file"
+            aria-label="Attach image"
             className="h-11 w-11 shrink-0 px-0"
+            disabled={!selectedConversation || uploadingAttachment}
             type="button"
             variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
           >
             <Paperclip className="h-4 w-4" />
           </Button>
           <Input
             className="h-11 border-transparent bg-transparent focus:border-transparent focus:ring-0"
-            disabled={!selectedConversation}
+            disabled={!selectedConversation || uploadingAttachment}
             placeholder="Type a reply..."
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
           />
-          <Button
-            className="h-11"
-            disabled={
-              !selectedConversation || sendMessage.isPending || !draft.trim()
-            }
-            type="submit"
-          >
-            Send
+          <Button className="h-11" disabled={!canSend} type="submit">
+            {uploadingAttachment ? "Uploading..." : "Send"}
             <Send className="h-4 w-4" />
           </Button>
+          </div>
         </form>
       </section>
       ) : null}

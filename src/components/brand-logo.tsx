@@ -29,16 +29,23 @@ export function BrandLogo({ variant = 'compact', theme, className }: BrandLogoPr
   const documentTheme = useDocumentTheme()
   const resolvedTheme = theme ?? documentTheme
   const size = {
-    mark: 'w-[96px]',
+    mark: 'w-[40px]',
     compact: 'w-[148px]',
     full: 'w-[360px]',
   }[variant]
+
+  const src =
+    variant === 'mark'
+      ? '/logo-mark.svg'
+      : resolvedTheme === 'light'
+        ? '/logo-main-light.svg'
+        : '/logo-main.svg'
 
   return (
     <img
       alt="AutoShowroom"
       className={cn('block h-auto object-contain', size, className)}
-      src={resolvedTheme === 'light' ? '/logo-main-light.svg' : '/logo-main.svg'}
+      src={src}
     />
   )
 }

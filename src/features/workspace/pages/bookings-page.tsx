@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 import { Calendar, Car, ChevronLeft, ChevronRight, Clock, MessageCircle, MoreHorizontal, Phone, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Button, Dialog, Input, Label, Textarea } from '@/components/ui'
+import { isPendingConfirmation, useDealerAppointments } from '@/features/workspace/components/bookings/use-dealer-appointments'
+import { BookingAvailabilityPanel } from '@/features/workspace/components/bookings/booking-availability-panel'
 import type { Appointment, Paginated, Vehicle } from '@/features/workspace/types'
 import { vehicleTitle } from '@/features/workspace/utils'
 import { api, patch, post } from '@/lib/api'
@@ -166,7 +168,7 @@ function MiniCalendar({ appointments, selectedDate, onSelect }: { appointments: 
 
 function BookingCard({ appointment, onReschedule, onCancel, onConfirm }: { appointment: Appointment; onReschedule: (a: Appointment) => void; onCancel: (a: Appointment) => void; onConfirm: (a: Appointment) => void }) {
   const service = serviceFromAppointment(appointment)
-  const pending = appointment.status === 'rescheduled'
+  const pending = isPendingConfirmation(appointment.status)
   const name = appointment.buyerName ?? appointment.title ?? 'Booking'
   const subLine = [appointment.vehicleTitle, [appointment.locationName, appointment.locationArea].filter(Boolean).join(', ')].filter(Boolean).join(' · ')
 
@@ -425,7 +427,7 @@ export function BookingsPage() {
   const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null)
   const [newOpen, setNewOpen] = useState(false)
 
-  const appointments = useQuery({ queryKey: ['appointments'], queryFn: () => api<Paginated<Appointment>>('/v1/appointments') })
+  const appointments = useDealerAppointments()
   const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Paginated<Vehicle>>('/v1/vehicles') })
 
   const all = unwrapList(appointments.data).filter((a) => a.status !== 'cancelled')
@@ -465,7 +467,7 @@ export function BookingsPage() {
       const d = new Date(a.scheduledAt)
       const cancelled = a.status === 'cancelled'
       if (!cancelled && isSameDay(d, today)) todayCount += 1
-      if (a.status === 'rescheduled') pending += 1
+      if (isPendingConfirmation(a.status)) pending += 1
       if (!cancelled && d >= weekStart && d <= weekEnd) week += 1
       if (!cancelled && d < today && d >= thirtyDaysAgo) completed30 += 1
     }
@@ -490,15 +492,15 @@ export function BookingsPage() {
     () => all.filter((a) => a.scheduledAt && new Date(a.scheduledAt).getTime() >= Date.now()).sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime()),
     [all],
   )
-  const awaitingReply = useMemo(() => all.filter((a) => a.status === 'rescheduled'), [all])
+  const awaitingReply = useMemo(() => all.filter((a) => isPendingConfirmation(a.status)), [all])
   const nextUp = upcoming[0]
   const vehicleList = unwrapList(vehicles.data)
 
   const dayFiltered = view === 'calendar' ? all.filter((a) => a.scheduledAt && isSameDay(new Date(a.scheduledAt), selectedDate)) : []
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="-m-5 flex h-[calc(100dvh-73px)] max-h-[calc(100dvh-92px)] min-h-0 flex-col overflow-hidden lg:-m-7 xl:-m-8">
+      <div className="flex shrink-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="font-display text-[34px] font-semibold leading-tight tracking-[-0.035em] text-white">Bookings</h1>
           <p className="mt-2 text-[14px] font-semibold text-neutral-400">
@@ -528,15 +530,16 @@ export function BookingsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid shrink-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Today" value={stats.todayCount} tone="lime" />
         <StatCard label="Pending confirm" value={stats.pending} note={stats.pending ? 'needs reply' : undefined} tone="amber" />
         <StatCard label="This week" value={stats.week} tone="blue" />
         <StatCard label="Completed · 30D" value={stats.completed30} tone="slate" />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
+      <div className="mt-5 grid min-h-0 flex-1 grid-rows-1 gap-5 xl:grid-cols-[1fr_320px]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain pr-1">
+          <div className="space-y-5 pb-2">
           {view === 'agenda' ? (
             grouped.length ? (
               grouped.map((group) => (
@@ -599,9 +602,10 @@ export function BookingsPage() {
               </section>
             </div>
           )}
+          </div>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain pr-1 pb-2">
           <MiniCalendar appointments={all} selectedDate={selectedDate} onSelect={setSelectedDate} />
           <section className="rounded-[18px] border border-lime-300/25 bg-lime-300/6 p-5">
             <div className="flex items-center justify-between">
@@ -643,6 +647,7 @@ export function BookingsPage() {
               <p className="mt-4 text-[13px] font-medium leading-6 text-neutral-500">Nothing pending. You're all caught up.</p>
             )}
           </section>
+          <BookingAvailabilityPanel />
         </aside>
       </div>
 

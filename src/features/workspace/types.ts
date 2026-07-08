@@ -124,6 +124,20 @@ export type Lead = {
   createdAt?: string
 }
 
+export type BookingDayHours = {
+  enabled: boolean
+  open: string
+  close: string
+}
+
+export type BookingAvailability = {
+  timezone: string
+  slotLengthMinutes: number
+  maxBookingsPerDay: number
+  weeklyHours: Record<string, BookingDayHours>
+  blockedDates: string[]
+}
+
 export type Appointment = {
   id: string
   bookingId?: string
@@ -205,6 +219,7 @@ export type ChatMessage = {
   id: string
   senderType: string
   body: string
+  attachmentUrl?: string
   createdAt: string
 }
 
@@ -215,8 +230,10 @@ export type Conversation = {
     phone: string
     email?: string
     name?: string
+    photoUrl?: string
   }
   lastMessageAt?: string
+  dealerLastReadAt?: string
   messages: ChatMessage[]
   bookingId?: string
   vehicle?: Vehicle

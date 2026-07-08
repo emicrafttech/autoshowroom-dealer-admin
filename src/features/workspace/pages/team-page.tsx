@@ -40,7 +40,64 @@ function canManageStaff(actorRole: string | undefined, member: Staff) {
   return false
 }
 
+function canAssignRole(actorRole: string | undefined, currentRole: string, newRole: string) {
+  if (newRole === currentRole) return false
+  if (actorRole === 'owner') return true
+  if (actorRole === 'manager') return currentRole === 'sales' && newRole !== 'owner'
+  return false
+}
+
+function assignableRoles(actorRole: string | undefined, currentRole: string) {
+  return (['owner', 'manager', 'sales'] as const).filter((r) => canAssignRole(actorRole, currentRole, r))
+}
+
 type RowAction = { label: string; icon: typeof Trash2; tone: 'default' | 'danger'; run: () => void }
+
+function RoleMenu({ actorRole, member, disabled, onChange }: { actorRole: string | undefined; member: Staff; disabled: boolean; onChange: (role: 'owner' | 'manager' | 'sales') => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const options = assignableRoles(actorRole, member.role)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [open])
+  if (!options.length) return null
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        aria-label="Change role"
+        className="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-neutral-500 transition hover:bg-white/8 hover:text-white"
+        disabled={disabled}
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-9 z-30 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#17171a] p-1 shadow-2xl shadow-black/40">
+          <div className="px-3 py-1.5 text-[10px] font-[900!important] uppercase tracking-[0.14em] text-neutral-500">Change role</div>
+          {options.map((role) => (
+            <button
+              className="flex w-full items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-neutral-200 transition hover:bg-white/8"
+              key={role}
+              type="button"
+              onClick={() => { setOpen(false); onChange(role) }}
+            >
+              <span className="capitalize">{role}</span>
+              <span className="text-[11px] font-medium text-neutral-500">{roleDescription(role)}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 function RowMenu({ actions, disabled }: { actions: RowAction[]; disabled: boolean }) {
   const [open, setOpen] = useState(false)
@@ -140,6 +197,15 @@ export function TeamPage() {
     },
     onError: (error) => toast.error(error.message),
   })
+  const changeRole = useMutation({
+    mutationFn: ({ member, role }: { member: Staff; role: 'owner' | 'manager' | 'sales' }) =>
+      patch<Staff>(`/v1/dealers/me/staff/${member.id}`, { role }),
+    onSuccess: () => {
+      toast.success('Role updated')
+      queryClient.invalidateQueries({ queryKey: ['staff'] })
+    },
+    onError: (error) => toast.error(error.message),
+  })
 
   return (
     <div className="space-y-5">
@@ -183,7 +249,8 @@ export function TeamPage() {
                 const status = member.invitePending ? 'Invite sent' : member.is_active ? 'Active' : 'Inactive'
                 const isSelf = member.id === currentUserId
                 const canManage = !isSelf && canManageStaff(currentRole, member)
-                const busy = deactivate.isPending || reactivate.isPending || resendInvite.isPending
+                const busy = deactivate.isPending || reactivate.isPending || resendInvite.isPending || changeRole.isPending
+                const canChangeRole = canManage && !member.invitePending && assignableRoles(currentRole, member.role).length > 0
                 const actions: RowAction[] = []
                 if (canManage && member.invitePending) {
                   actions.push({ label: 'Resend invite', icon: Send, tone: 'default', run: () => resendInvite.mutate(member) })
@@ -216,6 +283,7 @@ export function TeamPage() {
                       {status}
                     </div>
                     <div className="flex justify-end gap-2">
+                      {canChangeRole ? <RoleMenu actorRole={currentRole} member={member} disabled={busy} onChange={(role) => changeRole.mutate({ member, role })} /> : null}
                       <RowMenu actions={actions} disabled={busy} />
                     </div>
                   </article>

@@ -5,7 +5,7 @@ import { Button, Dialog } from '@/components/ui'
 import { AddVehicleDialog } from '@/features/workspace/components/cars/add-vehicle-dialog'
 import { CarsHeader } from '@/features/workspace/components/cars/cars-header'
 import { CarsInventoryTable } from '@/features/workspace/components/cars/cars-inventory-table'
-import { CarsStatusTabs } from '@/features/workspace/components/cars/cars-status-tabs'
+import { CarsStatusTabs, type InventoryViewMode } from '@/features/workspace/components/cars/cars-status-tabs'
 import { VehicleDetailsDialog } from '@/features/workspace/components/cars/vehicle-details-dialog'
 import type { Paginated, Vehicle } from '@/features/workspace/types'
 import { vehicleTitle } from '@/features/workspace/utils'
@@ -20,6 +20,7 @@ export function StockPage() {
   const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [viewMode, setViewMode] = useState<InventoryViewMode>('list')
   const [page, setPage] = useState(1)
   const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Paginated<Vehicle>>('/v1/vehicles') })
   const updateStatus = useMutation({
@@ -102,10 +103,12 @@ export function StockPage() {
       <CarsStatusTabs
         activeValue={statusFilter}
         tabs={statusTabs}
+        viewMode={viewMode}
         onChange={(value) => {
           setStatusFilter(value)
           setPage(1)
         }}
+        onViewModeChange={setViewMode}
       />
       <CarsInventoryTable
         currentPage={currentPage}
@@ -113,6 +116,7 @@ export function StockPage() {
         pageCount={pageCount}
         totalCount={filteredVehicles.length}
         vehicles={pagedVehicles}
+        viewMode={viewMode}
         onAddVehicle={() => setOpen(true)}
         onDelete={setDeletingVehicle}
         onEdit={(vehicle) => {

@@ -1,9 +1,21 @@
 import { NavLink } from 'react-router-dom'
 import { BrandLogo } from '@/components/brand-logo'
 import { nav } from '@/app/nav'
+import { usePendingBookingCount } from '@/features/workspace/components/bookings/use-dealer-appointments'
+import { useUnreadChatCount } from '@/features/workspace/components/chats/use-dealer-chats'
 import { readSession } from '@/lib/auth'
 import { routes } from '@/lib/routes'
 import { cn } from '@/lib/utils'
+
+function NavBadge({ count }: { count: number }) {
+  if (count <= 0) return null
+
+  return (
+    <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-lime-300 px-1.5 text-[10px] font-[900!important] text-neutral-950">
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
 
 function Logo() {
   return (
@@ -14,6 +26,9 @@ function Logo() {
 }
 
 function Navigation({ suspended = false }: { suspended?: boolean }) {
+  const unreadChatCount = useUnreadChatCount()
+  const pendingBookingCount = usePendingBookingCount()
+
   if (suspended) {
     return (
       <nav className="mt-7">
@@ -43,6 +58,8 @@ function Navigation({ suspended = false }: { suspended?: boolean }) {
         >
           <item.icon size={18} />
           {item.label}
+          {item.to === routes.chats ? <NavBadge count={unreadChatCount} /> : null}
+          {item.to === routes.bookings ? <NavBadge count={pendingBookingCount} /> : null}
         </NavLink>
       ))}
     </nav>
@@ -81,13 +98,16 @@ export function Sidebar({ suspended = false }: { suspended?: boolean }) {
 }
 
 export function MobileNav() {
+  const unreadChatCount = useUnreadChatCount()
+  const pendingBookingCount = usePendingBookingCount()
+
   return (
     <div className="mt-4 flex gap-2 overflow-x-auto lg:hidden">
       {nav.map((item) => (
         <NavLink
           className={({ isActive }) =>
             cn(
-              'whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold',
+              'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold',
               isActive ? 'bg-lime-300 text-neutral-950' : 'bg-white/8 text-neutral-300',
             )
           }
@@ -96,6 +116,16 @@ export function MobileNav() {
           to={item.to}
         >
           {item.label}
+          {item.to === routes.chats && unreadChatCount > 0 ? (
+            <span className="grid h-4 min-w-4 place-items-center rounded-full bg-lime-300 px-1 text-[9px] font-[900!important] text-neutral-950">
+              {unreadChatCount > 99 ? '99+' : unreadChatCount}
+            </span>
+          ) : null}
+          {item.to === routes.bookings && pendingBookingCount > 0 ? (
+            <span className="grid h-4 min-w-4 place-items-center rounded-full bg-lime-300 px-1 text-[9px] font-[900!important] text-neutral-950">
+              {pendingBookingCount > 99 ? '99+' : pendingBookingCount}
+            </span>
+          ) : null}
         </NavLink>
       ))}
     </div>

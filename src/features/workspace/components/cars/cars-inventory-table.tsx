@@ -2,6 +2,7 @@ import { Car, Eye, EyeOff, MoreHorizontal, Pencil, Plus, Search, Share2, Tag, Tr
 import { useEffect, useRef, useState } from 'react'
 import { BlurImage } from '@/components/blur-image'
 import { Badge, Button } from '@/components/ui'
+import type { InventoryViewMode } from '@/features/workspace/components/cars/cars-status-tabs'
 import { vehicleImageUrl, vehicleTitle } from '@/features/workspace/utils'
 import type { Vehicle } from '@/features/workspace/types'
 import { cn, formatCompactNgn, formatRelativeDate } from '@/lib/utils'
@@ -12,6 +13,7 @@ type CarsInventoryTableProps = {
   inventoryCount: number
   currentPage: number
   pageCount: number
+  viewMode: InventoryViewMode
   onAddVehicle: () => void
   onDelete: (vehicle: Vehicle) => void
   onEdit: (vehicle: Vehicle) => void
@@ -28,6 +30,8 @@ function VehicleActionsMenu({
   onShare,
   onStatusChange,
   onView,
+  triggerClassName,
+  menuPlacement = 'bottom',
 }: {
   vehicle: Vehicle
   onDelete: CarsInventoryTableProps['onDelete']
@@ -35,6 +39,8 @@ function VehicleActionsMenu({
   onShare: CarsInventoryTableProps['onShare']
   onStatusChange: CarsInventoryTableProps['onStatusChange']
   onView: CarsInventoryTableProps['onView']
+  triggerClassName?: string
+  menuPlacement?: 'bottom' | 'top'
 }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -56,12 +62,24 @@ function VehicleActionsMenu({
   }
 
   return (
-    <div className="relative inline-flex" ref={menuRef}>
-      <Button aria-label={`Open actions for ${vehicleTitle(vehicle)}`} size="sm" type="button" variant="ghost" onClick={() => setOpen((current) => !current)}>
+    <div className="relative z-20 inline-flex shrink-0" ref={menuRef} onClick={(event) => event.stopPropagation()}>
+      <Button
+        aria-label={`Open actions for ${vehicleTitle(vehicle)}`}
+        className={triggerClassName}
+        size="sm"
+        type="button"
+        variant="ghost"
+        onClick={() => setOpen((current) => !current)}
+      >
         <MoreHorizontal className="h-4 w-4" />
       </Button>
       {open ? (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[240px] rounded-[22px] border border-white/10 bg-[#18181d] p-4 text-left shadow-2xl shadow-black/50">
+        <div
+          className={cn(
+            'absolute right-0 z-50 w-[240px] rounded-[22px] border border-white/10 bg-[#18181d] p-4 text-left shadow-2xl shadow-black/50',
+            menuPlacement === 'top' ? 'bottom-[calc(100%+8px)]' : 'top-[calc(100%+8px)]',
+          )}
+        >
           <button className="flex h-14 w-full cursor-pointer items-center gap-4 rounded-xl px-3 text-[20px] font-[900!important] text-white transition hover:bg-white/8" type="button" onClick={() => runAction(() => onView(vehicle))}>
             <Eye className="h-6 w-6 text-lime-300" />
             View car
@@ -140,10 +158,210 @@ function EmptyCarsState({ isFiltered, onAddVehicle }: { isFiltered: boolean; onA
   )
 }
 
-export function CarsInventoryTable({ vehicles, totalCount, inventoryCount, currentPage, pageCount, onAddVehicle, onDelete, onEdit, onPageChange, onShare, onStatusChange, onView }: CarsInventoryTableProps) {
+function vehicleReviewMeta(vehicle: Vehicle) {
+  const reviewStatus = vehicle.openReviewIssueCount ? 'issues_open' : (vehicle.listingVerificationStatus ?? vehicle.reviewStatus ?? 'draft')
+  const reviewTone = reviewStatus === 'approved' ? 'lime' : reviewStatus === 'rejected' || reviewStatus === 'issues_open' ? 'red' : 'amber'
+  const reviewLabel = reviewStatus.replaceAll('_', ' ')
+  return { reviewStatus, reviewTone, reviewLabel }
+}
+
+function InventoryPaginationFooter({
+  currentPage,
+  end,
+  pageCount,
+  start,
+  totalCount,
+  onPageChange,
+}: {
+  currentPage: number
+  end: number
+  pageCount: number
+  start: number
+  totalCount: number
+  onPageChange: (page: number) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 px-6 py-5 text-[13px] font-medium text-neutral-500">
+      <div>Showing {start}-{end} of {totalCount} vehicles</div>
+      {pageCount > 1 ? (
+        <div className="flex gap-2">
+          {Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => (
+            <button
+              className={cn(
+                'h-9 w-9 cursor-pointer rounded-xl text-[13px] font-[900!important] transition',
+                page === currentPage ? 'bg-lime-300 text-neutral-950' : 'bg-white/8 text-neutral-300 ring-1 ring-white/8 hover:bg-white/12',
+              )}
+              key={page}
+              type="button"
+              onClick={() => onPageChange(page)}
+            >
+              {page}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function InventoryGridCard({
+  vehicle,
+  onDelete,
+  onEdit,
+  onShare,
+  onStatusChange,
+  onView,
+}: {
+  vehicle: Vehicle
+  onDelete: CarsInventoryTableProps['onDelete']
+  onEdit: CarsInventoryTableProps['onEdit']
+  onShare: CarsInventoryTableProps['onShare']
+  onStatusChange: CarsInventoryTableProps['onStatusChange']
+  onView: CarsInventoryTableProps['onView']
+}) {
+  const imageUrl = vehicleImageUrl(vehicle)
+  const sold = vehicle.status === 'sold'
+  const { reviewLabel, reviewTone } = vehicleReviewMeta(vehicle)
+
+  return (
+    <article className={cn('group rounded-[18px] border border-white/8 bg-[#141419]/80', sold && 'opacity-80')}>
+      <div className="relative aspect-[4/3] overflow-hidden rounded-t-[18px] bg-white/8">
+        <button
+          className="block h-full w-full cursor-pointer appearance-none border-0 bg-transparent p-0 text-left"
+          type="button"
+          onClick={() => onView(vehicle)}
+        >
+          {imageUrl ? (
+            <BlurImage
+              alt={vehicleTitle(vehicle)}
+              className={cn('h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]', sold && 'brightness-[0.75] grayscale-[0.45]')}
+              src={imageUrl}
+            />
+          ) : (
+            <div className="grid h-full place-items-center text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-600">No image</div>
+          )}
+        </button>
+        <span
+          className={cn(
+            'absolute left-3 top-3 z-10 inline-flex items-center gap-2 rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-[900!important] capitalize backdrop-blur-sm',
+            vehicle.status === 'available' ? 'text-lime-300' : vehicle.status === 'reserved' ? 'text-amber-300' : 'text-neutral-300',
+          )}
+        >
+          <span className={cn('h-1.5 w-1.5 rounded-full', vehicle.status === 'available' ? 'bg-lime-300' : vehicle.status === 'reserved' ? 'bg-amber-300' : 'bg-neutral-500')} />
+          {vehicle.status}
+        </span>
+      </div>
+      <div className="space-y-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <button
+              className="font-display text-left text-[17px] font-semibold leading-tight tracking-[-0.02em] text-white transition hover:underline cursor-pointer appearance-none border-0 bg-transparent p-0"
+              type="button"
+              onClick={() => onView(vehicle)}
+            >
+              {vehicleTitle(vehicle)}
+            </button>
+            <p className="mt-1 text-[12.5px] font-medium text-neutral-500">
+              {vehicle.year} · {vehicle.mileageKm ? `${vehicle.mileageKm.toLocaleString()} km` : 'Mileage not set'} · {vehicle.media?.length ?? 0} media
+            </p>
+          </div>
+          <VehicleActionsMenu
+            menuPlacement="top"
+            triggerClassName="bg-white/10 ring-1 ring-white/15 hover:bg-white/15"
+            vehicle={vehicle}
+            onDelete={onDelete}
+            onEdit={onEdit}
+            onShare={onShare}
+            onStatusChange={onStatusChange}
+            onView={onView}
+          />
+        </div>
+        <div className="flex items-end justify-between gap-3">
+          <div className="font-display text-[20px] font-semibold tracking-[-0.02em] text-white">{formatCompactNgn(vehicle.priceNgn)}</div>
+          <div className="text-right text-[12px] font-medium text-neutral-500">{formatRelativeDate(vehicle.publishedAt ?? vehicle.createdAt)}</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={reviewTone}>{reviewLabel}</Badge>
+          {vehicle.openReviewIssueCount ? (
+            <span className="text-[11px] font-bold text-red-300">
+              {vehicle.openReviewIssueCount} issue{vehicle.openReviewIssueCount === 1 ? '' : 's'} to fix
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function InventoryGrid({
+  vehicles,
+  onDelete,
+  onEdit,
+  onShare,
+  onStatusChange,
+  onView,
+}: {
+  vehicles: Vehicle[]
+  onDelete: CarsInventoryTableProps['onDelete']
+  onEdit: CarsInventoryTableProps['onEdit']
+  onShare: CarsInventoryTableProps['onShare']
+  onStatusChange: CarsInventoryTableProps['onStatusChange']
+  onView: CarsInventoryTableProps['onView']
+}) {
+  return (
+    <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
+      {vehicles.map((vehicle) => (
+        <InventoryGridCard
+          key={vehicle.id}
+          vehicle={vehicle}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onShare={onShare}
+          onStatusChange={onStatusChange}
+          onView={onView}
+        />
+      ))}
+    </div>
+  )
+}
+
+export function CarsInventoryTable({ vehicles, totalCount, inventoryCount, currentPage, pageCount, viewMode, onAddVehicle, onDelete, onEdit, onPageChange, onShare, onStatusChange, onView }: CarsInventoryTableProps) {
   const isEmpty = vehicles.length === 0
   const start = totalCount === 0 ? 0 : (currentPage - 1) * 10 + 1
   const end = Math.min(currentPage * 10, totalCount)
+  const paginationFooter = vehicles.length ? (
+    <InventoryPaginationFooter
+      currentPage={currentPage}
+      end={end}
+      pageCount={pageCount}
+      start={start}
+      totalCount={totalCount}
+      onPageChange={onPageChange}
+    />
+  ) : null
+
+  if (viewMode === 'grid') {
+    return (
+      <div className="overflow-visible rounded-[18px] border border-white/8 bg-[#111114]/90">
+        {vehicles.length ? (
+          <>
+            <InventoryGrid
+              vehicles={vehicles}
+              onDelete={onDelete}
+              onEdit={onEdit}
+              onShare={onShare}
+              onStatusChange={onStatusChange}
+              onView={onView}
+            />
+            {paginationFooter}
+          </>
+        ) : (
+          <EmptyCarsState isFiltered={inventoryCount > 0 && isEmpty} onAddVehicle={onAddVehicle} />
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="overflow-visible rounded-[18px] border border-white/8 bg-[#111114]/90">
       <table className="w-full border-collapse text-left text-[13.5px]">
@@ -160,9 +378,7 @@ export function CarsInventoryTable({ vehicles, totalCount, inventoryCount, curre
         <tbody className="divide-y divide-white/8">
           {vehicles.map((vehicle) => {
             const imageUrl = vehicleImageUrl(vehicle)
-            const reviewStatus = vehicle.openReviewIssueCount ? 'issues_open' : (vehicle.listingVerificationStatus ?? vehicle.reviewStatus ?? 'draft')
-            const reviewTone = reviewStatus === 'approved' ? 'lime' : reviewStatus === 'rejected' || reviewStatus === 'issues_open' ? 'red' : 'amber'
-            const reviewLabel = reviewStatus.replaceAll('_', ' ')
+            const { reviewLabel, reviewTone } = vehicleReviewMeta(vehicle)
             return (
               <tr className="text-neutral-300" key={vehicle.id}>
                 <td className="px-6 py-4">
@@ -214,30 +430,7 @@ export function CarsInventoryTable({ vehicles, totalCount, inventoryCount, curre
           })}
         </tbody>
       </table>
-      {vehicles.length ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 px-6 py-5 text-[13px] font-medium text-neutral-500">
-          <div>Showing {start}-{end} of {totalCount} vehicles</div>
-          {pageCount > 1 ? (
-            <div className="flex gap-2">
-              {Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => (
-                <button
-                  className={cn(
-                    'h-9 w-9 cursor-pointer rounded-xl text-[13px] font-[900!important] transition',
-                    page === currentPage ? 'bg-lime-300 text-neutral-950' : 'bg-white/8 text-neutral-300 ring-1 ring-white/8 hover:bg-white/12',
-                  )}
-                  key={page}
-                  type="button"
-                  onClick={() => onPageChange(page)}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : (
-        <EmptyCarsState isFiltered={inventoryCount > 0 && isEmpty} onAddVehicle={onAddVehicle} />
-      )}
+      {paginationFooter ?? <EmptyCarsState isFiltered={inventoryCount > 0 && isEmpty} onAddVehicle={onAddVehicle} />}
     </div>
   )
 }
