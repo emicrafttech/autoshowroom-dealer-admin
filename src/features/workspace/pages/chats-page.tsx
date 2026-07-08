@@ -29,7 +29,7 @@ import type {
   Vehicle,
 } from "@/features/workspace/types";
 import { vehicleImageUrl, vehicleTitle } from "@/features/workspace/utils";
-import { API_BASE_URL, api, patch, post } from "@/lib/api";
+import { API_BASE_URL, patch, post } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { queryClient } from "@/lib/query";
 import { routes } from "@/lib/routes";

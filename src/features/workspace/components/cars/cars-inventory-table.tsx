@@ -158,9 +158,12 @@ function EmptyCarsState({ isFiltered, onAddVehicle }: { isFiltered: boolean; onA
   )
 }
 
+type ReviewBadgeTone = 'lime' | 'amber' | 'red'
+
 function vehicleReviewMeta(vehicle: Vehicle) {
   const reviewStatus = vehicle.openReviewIssueCount ? 'issues_open' : (vehicle.listingVerificationStatus ?? vehicle.reviewStatus ?? 'draft')
-  const reviewTone = reviewStatus === 'approved' ? 'lime' : reviewStatus === 'rejected' || reviewStatus === 'issues_open' ? 'red' : 'amber'
+  const reviewTone: ReviewBadgeTone =
+    reviewStatus === 'approved' ? 'lime' : reviewStatus === 'rejected' || reviewStatus === 'issues_open' ? 'red' : 'amber'
   const reviewLabel = reviewStatus.replaceAll('_', ' ')
   return { reviewStatus, reviewTone, reviewLabel }
 }
