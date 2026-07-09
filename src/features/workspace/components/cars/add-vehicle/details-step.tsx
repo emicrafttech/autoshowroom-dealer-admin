@@ -114,10 +114,70 @@ export function DetailsStep({
             <Label>Reg / VIN</Label>
             <Input placeholder="JTHHA5BC..." value={form.vin} onChange={(event) => onFieldChange('vin', event.target.value.toUpperCase())} />
           </div>
+          <div className="space-y-2">
+            <Label>Chassis number <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
+            <Input placeholder="Chassis number" value={form.chassisNumber} onChange={(event) => onFieldChange('chassisNumber', event.target.value.toUpperCase())} />
+          </div>
+          <div className="space-y-2">
+            <Label>Year of manufacture <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
+            <Input inputMode="numeric" placeholder="2020" value={form.yearOfManufacture} onChange={(event) => onFieldChange('yearOfManufacture', onlyDigits(event.target.value))} />
+          </div>
+          <div className="space-y-2">
+            <Label>Engine capacity (cc) <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
+            <Input inputMode="numeric" placeholder="2500" value={formatNumberInput(form.engineCapacityCc)} onChange={(event) => onFieldChange('engineCapacityCc', onlyDigits(event.target.value))} />
+          </div>
         </div>
         <div className="mt-4 space-y-2">
           <Label>Description <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
           <Textarea placeholder="Clean F Sport, foreign-used. Full service history, new tyres, AWD. No accidents." value={form.notes} onChange={(event) => onFieldChange('notes', event.target.value)} />
+        </div>
+      </section>
+      <section>
+        <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Registration, customs, and trust</div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Registration plate <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
+            <Input placeholder="ABC-123DE" value={form.registrationPlate} onChange={(event) => onFieldChange('registrationPlate', event.target.value.toUpperCase())} />
+          </div>
+          <div className="space-y-2">
+            <Label>Registration state <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
+            <Input placeholder="FCT" value={form.registrationState} onChange={(event) => onFieldChange('registrationState', event.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Registration LGA <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
+            <Input placeholder="Abuja Municipal" value={form.registrationLga} onChange={(event) => onFieldChange('registrationLga', event.target.value)} />
+          </div>
+          <SelectField label="Customs duty" value={form.customsDutyStatus} onChange={(value) => onFieldChange('customsDutyStatus', value)} options={[
+            { label: 'Unknown', value: 'unknown' },
+            { label: 'Cleared', value: 'cleared' },
+            { label: 'Pending', value: 'pending' },
+            { label: 'Not applicable', value: 'not_applicable' },
+          ]} />
+          <div className="space-y-2">
+            <Label>Customs reference <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
+            <Input placeholder="C-number or SGD reference" value={form.customsReference} onChange={(event) => onFieldChange('customsReference', event.target.value)} />
+          </div>
+          <SelectField label="Body history" value={form.bodyHistory} onChange={(value) => onFieldChange('bodyHistory', value)} options={[
+            { label: 'Unknown', value: 'unknown' },
+            { label: 'First body', value: 'first_body' },
+            { label: 'Repaint', value: 'repaint' },
+            { label: 'Accident recorded', value: 'accident_recorded' },
+          ]} />
+          <SelectField label="Papers status" value={form.papersStatus} onChange={(value) => onFieldChange('papersStatus', value)} options={[
+            { label: 'Unknown', value: 'unknown' },
+            { label: 'Complete', value: 'complete' },
+            { label: 'Partial', value: 'partial' },
+          ]} />
+          <SelectField label="Duty paid claim" value={form.dutyPaidClaim} onChange={(value) => onFieldChange('dutyPaidClaim', value)} options={[
+            { label: 'Unverified', value: 'unverified' },
+            { label: 'Dealer claimed', value: 'dealer_claimed' },
+            { label: 'API verified', value: 'api_verified' },
+            { label: 'Manually verified', value: 'manually_verified' },
+          ]} />
+        </div>
+        <div className="mt-4 space-y-2">
+          <Label>Listing trust notes <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
+          <Textarea placeholder="Service records, warranty, inspection, ownership, and documentation notes." value={form.listingTrust} onChange={(event) => onFieldChange('listingTrust', event.target.value)} />
         </div>
       </section>
     </div>

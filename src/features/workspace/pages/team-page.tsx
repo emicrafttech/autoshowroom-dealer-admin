@@ -236,8 +236,8 @@ export function TeamPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-        <section className="overflow-hidden rounded-[20px] border border-white/8 bg-[#101014]/80 shadow-2xl shadow-black/20">
-          <div className="grid grid-cols-[1fr_140px_150px_80px] border-b border-white/8 px-5 py-4 text-[11px] font-[900!important] uppercase tracking-[0.14em] text-neutral-500">
+        <section className="overflow-x-auto rounded-[20px] border border-white/8 bg-[#101014]/80 shadow-2xl shadow-black/20">
+          <div className="grid min-w-[620px] grid-cols-[1fr_140px_150px_80px] border-b border-white/8 px-5 py-4 text-[11px] font-[900!important] uppercase tracking-[0.14em] text-neutral-500">
             <div>Member</div>
             <div>Role</div>
             <div>Status</div>
@@ -262,7 +262,7 @@ export function TeamPage() {
                   actions.push({ label: 'Reactivate', icon: RefreshCw, tone: 'default', run: () => reactivate.mutate(member) })
                 }
                 return (
-                  <article className="grid grid-cols-[1fr_140px_150px_80px] items-center px-5 py-4" key={member.id}>
+                  <article className="grid min-w-[620px] grid-cols-[1fr_140px_150px_80px] items-center px-5 py-4" key={member.id}>
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-lime-300 font-display text-[13px] font-bold text-neutral-950">
                         {initials(member.name)}
@@ -318,8 +318,10 @@ export function TeamPage() {
             <h2 className="font-display text-[20px] font-semibold text-white">Roles</h2>
             <div className="mt-4 space-y-3">
               {(['owner', 'manager', 'sales'] as const).map((role) => (
-                <div className="flex items-start gap-3" key={role}>
-                  <Badge tone={roleTone(role)}>{role}</Badge>
+                <div className="flex items-center gap-3" key={role}>
+                  <div className="w-[88px] shrink-0">
+                    <Badge tone={roleTone(role)}>{role}</Badge>
+                  </div>
                   <p className="text-[12px] font-medium leading-5 text-neutral-500">{roleDescription(role)}</p>
                 </div>
               ))}

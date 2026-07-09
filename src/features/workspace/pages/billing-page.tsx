@@ -9,7 +9,7 @@ import type {
   Paginated,
   Plan,
 } from "@/features/workspace/types";
-import { api, post } from "@/lib/api";
+import { api, apiBlob, post } from "@/lib/api";
 import { startPaystackCheckout } from "@/lib/paystack-checkout";
 import { cn, formatDate, formatNgn, unwrapList } from "@/lib/utils";
 
@@ -97,6 +97,21 @@ function formatCardBrand(brand: string) {
   const normalized = brand.trim().toLowerCase()
   if (!normalized) return 'Card'
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+function invoiceDownloadName(invoice: Invoice, index: number) {
+  return `autoshowroom-invoice-${invoice.issuedAt.slice(0, 10)}-${String(index + 1).padStart(3, "0")}.pdf`;
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function StatUsageCard({
@@ -334,6 +349,24 @@ export function BillingPage() {
     },
     onError: (error) => toast.error(error.message),
   });
+  const invoiceItems = unwrapList(invoices.data);
+  const downloadInvoice = useMutation({
+    mutationFn: async ({ invoice, index }: { invoice: Invoice; index: number }) => {
+      const blob = await apiBlob(`/v1/billing/invoices/${invoice.id}/pdf`);
+      triggerDownload(blob, invoiceDownloadName(invoice, index));
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const downloadAllInvoices = useMutation({
+    mutationFn: async () => {
+      for (const [index, invoice] of invoiceItems.entries()) {
+        const blob = await apiBlob(`/v1/billing/invoices/${invoice.id}/pdf`);
+        triggerDownload(blob, invoiceDownloadName(invoice, index));
+      }
+    },
+    onSuccess: () => toast.success("Invoices downloaded"),
+    onError: (error) => toast.error(error.message),
+  });
   const availablePlans = unwrapList(plans.data);
   const currentPlan = summary.data?.subscription?.plan ?? availablePlans[0];
   const pendingDowngrade = summary.data?.pendingDowngrade;
@@ -343,7 +376,6 @@ export function BillingPage() {
   const hasOtherPlans = availablePlans.some(
     (plan) => plan.id !== currentPlan?.id,
   );
-  const invoiceItems = unwrapList(invoices.data);
   const nextChargeDate = summary.data?.subscription?.currentPeriodEnd;
   const nextChargeAmount = currentPlan?.priceNgn ?? 0;
 
@@ -459,19 +491,21 @@ export function BillingPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-        <section className="overflow-hidden rounded-[20px] border border-white/8 bg-[#101014]/80 shadow-2xl shadow-black/20">
+        <section className="overflow-x-auto rounded-[20px] border border-white/8 bg-[#101014]/80 shadow-2xl shadow-black/20">
           <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
             <h2 className="font-display text-[19px] font-semibold text-white">
               Invoices
             </h2>
             <button
               className="cursor-pointer text-[12px] font-[900!important] text-lime-300"
+              disabled={!invoiceItems.length || downloadAllInvoices.isPending}
               type="button"
+              onClick={() => downloadAllInvoices.mutate()}
             >
-              Download all
+              {downloadAllInvoices.isPending ? "Downloading..." : "Download all"}
             </button>
           </div>
-          <div className="grid grid-cols-[1fr_130px_130px_150px_40px] border-b border-white/8 px-5 py-3 text-[11px] font-[900!important] uppercase tracking-[0.14em] text-neutral-500">
+          <div className="grid min-w-[720px] grid-cols-[1fr_130px_130px_150px_40px] border-b border-white/8 px-5 py-3 text-[11px] font-[900!important] uppercase tracking-[0.14em] text-neutral-500">
             <div>Invoice</div>
             <div>Amount</div>
             <div>Status</div>
@@ -482,7 +516,7 @@ export function BillingPage() {
             <div className="divide-y divide-white/8">
               {invoiceItems.map((invoice, index) => (
                 <div
-                  className="grid grid-cols-[1fr_130px_130px_150px_40px] items-center px-5 py-4 text-[13px] font-semibold text-neutral-300"
+                  className="grid min-w-[720px] grid-cols-[1fr_130px_130px_150px_40px] items-center px-5 py-4 text-[13px] font-semibold text-neutral-300"
                   key={invoice.id}
                 >
                   <div className="font-[900!important] text-white">
@@ -495,13 +529,15 @@ export function BillingPage() {
                     {invoice.status}
                   </div>
                   <div>{formatDate(invoice.issuedAt)}</div>
-                  <a
+                  <button
                     className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 transition hover:bg-white/8 hover:text-white"
-                    href={invoice.pdfUrl ?? "#"}
                     aria-label="Download invoice"
+                    disabled={downloadInvoice.isPending}
+                    type="button"
+                    onClick={() => downloadInvoice.mutate({ invoice, index })}
                   >
                     <Download className="h-4 w-4" />
-                  </a>
+                  </button>
                 </div>
               ))}
             </div>

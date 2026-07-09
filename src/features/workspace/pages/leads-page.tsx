@@ -1,6 +1,12 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  DndContext,
+  type DragEndEvent,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, Plus, Share2, Users } from "lucide-react";
+import { MessageCircle, MoreHorizontal, Phone, Plus, Share2, StickyNote, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,
@@ -13,6 +19,7 @@ import { VehicleDetailsDialog } from "@/features/workspace/components/cars/vehic
 import type {
   DealerProfile,
   Lead,
+  LeadNote,
   Paginated,
   Vehicle,
 } from "@/features/workspace/types";
@@ -93,6 +100,16 @@ function nextStage(currentStage?: string) {
   return order[Math.min(Math.max(currentIndex, 0) + 1, order.length - 1)];
 }
 
+function phoneHref(phone: string) {
+  const normalized = phone.replace(/[^\d+]/g, "");
+  return normalized ? `tel:${normalized}` : undefined;
+}
+
+function whatsappHref(phone: string) {
+  const normalized = phone.replace(/[^\d]/g, "");
+  return normalized ? `https://wa.me/${normalized}` : undefined;
+}
+
 function LeadVehicleLink({
   lead,
   className,
@@ -118,6 +135,156 @@ function LeadVehicleLink({
     >
       {label}
     </button>
+  );
+}
+
+function LeadCard({
+  lead,
+  stage,
+  onMoveForward,
+  onOpenVehicle,
+  onOpenNotes,
+}: {
+  lead: Lead;
+  stage: (typeof stages)[number];
+  onMoveForward: (lead: Lead) => void;
+  onOpenVehicle: (vehicleId: string) => void;
+  onOpenNotes: (lead: Lead) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: lead.id,
+    data: { leadId: lead.id },
+  });
+  const promotedStage = nextStage(lead.stage);
+  const phone = leadPhone(lead);
+  const tel = phoneHref(phone);
+  const whatsapp = whatsappHref(phone);
+
+  return (
+    <article
+      className={cn(
+        "rounded-[16px] border border-white/8 bg-[#17171a]/90 p-4 shadow-xl shadow-black/15 ring-1 transition",
+        stage.ring,
+        isDragging && "opacity-70",
+      )}
+      ref={setNodeRef}
+      style={{
+        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+      }}
+      {...listeners}
+      {...attributes}
+    >
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/8 text-[12px] font-bold text-white ring-1 ring-white/10">
+          {initials(leadName(lead))}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-display text-[15px] font-semibold text-white">
+            {leadName(lead)}
+          </div>
+          <LeadVehicleLink
+            className="mt-0.5 block truncate text-[12.5px]"
+            lead={lead}
+            onOpen={onOpenVehicle}
+          />
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="text-[12px] font-bold text-neutral-500">{phone}</div>
+        <div className="text-[11px] font-bold text-neutral-500">{timeAgo(lead.createdAt)}</div>
+      </div>
+      {lead.followUpAt ? (
+        <div className="mt-2 rounded-lg bg-amber-300/10 px-2 py-1 text-[11px] font-bold text-amber-200">
+          Follow up {formatDate(lead.followUpAt)}
+        </div>
+      ) : null}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <a
+          className="grid h-9 place-items-center rounded-xl bg-white/8 text-neutral-300 ring-1 ring-white/10 transition hover:bg-white/12"
+          href={tel}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <Phone className="h-4 w-4" />
+        </a>
+        <a
+          className="grid h-9 place-items-center rounded-xl bg-white/8 text-neutral-300 ring-1 ring-white/10 transition hover:bg-white/12"
+          href={whatsapp}
+          rel="noreferrer"
+          target="_blank"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <MessageCircle className="h-4 w-4" />
+        </a>
+        <button
+          className="grid h-9 cursor-pointer place-items-center rounded-xl bg-white/8 text-neutral-300 ring-1 ring-white/10 transition hover:bg-white/12"
+          type="button"
+          onClick={() => onOpenNotes(lead)}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <StickyNote className="h-4 w-4" />
+        </button>
+      </div>
+      {(lead.stage ?? "new") !== "sold" ? (
+        <button
+          className="mt-3 h-9 w-full cursor-pointer rounded-xl bg-white/8 text-[12px] font-[900!important] text-neutral-300 ring-1 ring-white/10 transition hover:bg-lime-300 hover:text-neutral-950"
+          type="button"
+          onClick={() => onMoveForward(lead)}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          Move to {stageMeta(promotedStage).label}
+        </button>
+      ) : null}
+    </article>
+  );
+}
+
+function PipelineColumn({
+  stage,
+  leads,
+  onMoveForward,
+  onOpenVehicle,
+  onOpenNotes,
+}: {
+  stage: (typeof stages)[number];
+  leads: Lead[];
+  onMoveForward: (lead: Lead) => void;
+  onOpenVehicle: (vehicleId: string) => void;
+  onOpenNotes: (lead: Lead) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage.value });
+
+  return (
+    <section className="flex min-h-0 flex-col" key={stage.value}>
+      <div className="mb-3 flex items-center gap-2">
+        <span className={cn("h-2.5 w-2.5 rounded-full", stage.dot)} />
+        <h2 className="font-display text-[14px] font-semibold tracking-[-0.02em] text-white">
+          {stage.label}
+        </h2>
+        <span className="rounded-md bg-white/8 px-2 py-0.5 text-[11px] font-bold text-neutral-400">
+          {leads.length}
+        </span>
+      </div>
+      <div
+        className={cn(
+          "min-h-0 flex-1 rounded-[18px] border border-dashed border-white/10 bg-transparent p-3 transition",
+          isOver && "border-lime-300/40 bg-lime-300/5",
+        )}
+        ref={setNodeRef}
+      >
+        <div className="space-y-3">
+          {leads.map((lead) => (
+            <LeadCard
+              key={lead.id}
+              lead={lead}
+              stage={stage}
+              onMoveForward={onMoveForward}
+              onOpenNotes={onOpenNotes}
+              onOpenVehicle={onOpenVehicle}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -193,6 +360,89 @@ function AddLeadDialog({
           {pending ? "Adding..." : "Add lead"}
         </Button>
       </form>
+    </Dialog>
+  );
+}
+
+function LeadNotesDialog({
+  lead,
+  pending,
+  onClose,
+  onAddNote,
+  onSetReminder,
+}: {
+  lead: Lead | null;
+  pending: boolean;
+  onClose: () => void;
+  onAddNote: (lead: Lead, body: string) => void;
+  onSetReminder: (lead: Lead, followUpAt: string | null) => void;
+}) {
+  const [body, setBody] = useState("");
+  const [followUpAt, setFollowUpAt] = useState("");
+
+  useEffect(() => {
+    setBody("");
+    setFollowUpAt(lead?.followUpAt ? lead.followUpAt.slice(0, 16) : "");
+  }, [lead]);
+
+  return (
+    <Dialog open={Boolean(lead)} title={lead ? `Notes · ${leadName(lead)}` : "Lead notes"} onClose={onClose}>
+      {lead ? (
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label>Follow-up reminder</Label>
+            <div className="flex gap-2">
+              <Input
+                type="datetime-local"
+                value={followUpAt}
+                onChange={(event) => setFollowUpAt(event.target.value)}
+              />
+              <Button
+                disabled={pending}
+                type="button"
+                variant="secondary"
+                onClick={() => onSetReminder(lead, followUpAt ? new Date(followUpAt).toISOString() : null)}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+          <form
+            className="space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!body.trim()) return;
+              onAddNote(lead, body.trim());
+            }}
+          >
+            <Label>Add note</Label>
+            <Textarea
+              placeholder="Add conversation notes for your team..."
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+            />
+            <Button disabled={pending || !body.trim()} type="submit">
+              {pending ? "Saving..." : "Save note"}
+            </Button>
+          </form>
+          <div className="space-y-2">
+            {(lead.notes ?? []).length ? (
+              (lead.notes ?? []).map((note: LeadNote) => (
+                <div className="rounded-2xl border border-white/8 bg-black/20 p-3" key={note.id}>
+                  <p className="text-[13px] font-semibold leading-6 text-neutral-200">{note.body}</p>
+                  <div className="mt-2 text-[11px] font-bold text-neutral-500">
+                    {note.authorName || "Team"}{note.createdAt ? ` · ${formatDate(note.createdAt)}` : ""}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-2xl border border-dashed border-white/10 p-4 text-center text-[13px] font-semibold text-neutral-500">
+                No notes yet.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
     </Dialog>
   );
 }
@@ -371,6 +621,7 @@ function LeadsListTable({
 export function LeadsPage() {
   const [view, setView] = useState<"board" | "list">("board");
   const [addOpen, setAddOpen] = useState(false);
+  const [notesLead, setNotesLead] = useState<Lead | null>(null);
   const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null);
   const navigate = useNavigate();
   const leads = useQuery({
@@ -389,6 +640,30 @@ export function LeadsPage() {
   const fetchVehicle = useMutation({
     mutationFn: (vehicleId: string) => api<Vehicle>(`/v1/vehicles/${vehicleId}`),
     onSuccess: (vehicle) => setViewingVehicle(vehicle),
+    onError: (error) => toast.error(error.message),
+  });
+  const updateReminder = useMutation({
+    mutationFn: ({ lead, followUpAt }: { lead: Lead; followUpAt: string | null }) =>
+      patch<Lead>(`/v1/leads/${lead.id}`, { followUpAt }),
+    onSuccess: async (lead) => {
+      toast.success("Reminder saved");
+      setNotesLead((current) => (current?.id === lead.id ? lead : current));
+      await queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const addNote = useMutation({
+    mutationFn: ({ lead, body }: { lead: Lead; body: string }) =>
+      post<LeadNote>(`/v1/leads/${lead.id}/notes`, { body }),
+    onSuccess: async (note, values) => {
+      toast.success("Note added");
+      setNotesLead((current) =>
+        current?.id === values.lead.id
+          ? { ...current, notes: [note, ...(current.notes ?? [])] }
+          : current,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
     onError: (error) => toast.error(error.message),
   });
   const create = useMutation({
@@ -433,6 +708,15 @@ export function LeadsPage() {
   ).length;
   const hasLeads = allLeads.length > 0;
 
+  function handleDragEnd(event: DragEndEvent) {
+    const leadId = String(event.active.id);
+    const stage = String(event.over?.id ?? "");
+    if (!stage || !stages.some((item) => item.value === stage)) return;
+    const lead = allLeads.find((item) => item.id === leadId);
+    if (!lead || lead.stage === stage) return;
+    update.mutate({ id: lead.id, stage });
+  }
+
   return (
     <div>
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -472,83 +756,21 @@ export function LeadsPage() {
         </div>
       </div>
       {view === "board" ? (
-        <div className="relative overflow-hidden">
-          <div className="grid h-[calc(100dvh-260px)] min-h-[610px] grid-cols-5 gap-4">
-            {stages.map((stage) => {
-              const stageLeads = allLeads.filter(
-                (lead) => (lead.stage ?? "new") === stage.value,
-              );
-              return (
-                <section className="flex min-h-0 flex-col" key={stage.value}>
-                  <div className="mb-3 flex items-center gap-2">
-                    <span
-                      className={cn("h-2.5 w-2.5 rounded-full", stage.dot)}
-                    />
-                    <h2 className="font-display text-[14px] font-semibold tracking-[-0.02em] text-white">
-                      {stage.label}
-                    </h2>
-                    <span className="rounded-md bg-white/8 px-2 py-0.5 text-[11px] font-bold text-neutral-400">
-                      {stageLeads.length}
-                    </span>
-                  </div>
-                  <div className="min-h-0 flex-1 rounded-[18px] border border-dashed border-white/10 bg-transparent p-3">
-                    <div className="space-y-3">
-                      {stageLeads.map((lead) => {
-                        const promotedStage = nextStage(lead.stage);
-                        return (
-                          <article
-                            className={cn(
-                              "rounded-[16px] border border-white/8 bg-[#17171a]/90 p-4 shadow-xl shadow-black/15 ring-1",
-                              stage.ring,
-                            )}
-                            key={lead.id}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/8 text-[12px] font-bold text-white ring-1 ring-white/10">
-                                {initials(leadName(lead))}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate font-display text-[15px] font-semibold text-white">
-                                  {leadName(lead)}
-                                </div>
-                                <LeadVehicleLink
-                                  className="mt-0.5 block truncate text-[12.5px]"
-                                  lead={lead}
-                                  onOpen={openVehicleDetail}
-                                />
-                              </div>
-                            </div>
-                            <div className="mt-3 flex items-center justify-between gap-2">
-                              <div className="text-[12px] font-bold text-neutral-500">
-                                {leadPhone(lead)}
-                              </div>
-                              <div className="text-[11px] font-bold text-neutral-500">
-                                {timeAgo(lead.createdAt)}
-                              </div>
-                            </div>
-                            {(lead.stage ?? "new") !== "sold" ? (
-                              <button
-                                className="mt-3 h-9 w-full cursor-pointer rounded-xl bg-white/8 text-[12px] font-[900!important] text-neutral-300 ring-1 ring-white/10 transition hover:bg-lime-300 hover:text-neutral-950"
-                                type="button"
-                                onClick={() =>
-                                  update.mutate({
-                                    id: lead.id,
-                                    stage: promotedStage,
-                                  })
-                                }
-                              >
-                                Move to {stageMeta(promotedStage).label}
-                              </button>
-                            ) : null}
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+        <div className="relative overflow-x-auto pb-2">
+          <DndContext onDragEnd={handleDragEnd}>
+            <div className="grid h-[calc(100dvh-260px)] min-h-[610px] min-w-[1120px] grid-cols-5 gap-4">
+              {stages.map((stage) => (
+                <PipelineColumn
+                  key={stage.value}
+                  leads={allLeads.filter((lead) => (lead.stage ?? "new") === stage.value)}
+                  stage={stage}
+                  onMoveForward={(lead) => update.mutate({ id: lead.id, stage: nextStage(lead.stage) })}
+                  onOpenNotes={setNotesLead}
+                  onOpenVehicle={openVehicleDetail}
+                />
+              ))}
+            </div>
+          </DndContext>
           {!hasLeads ? (
             <EmptyLeadsState onAddLead={() => setAddOpen(true)} />
           ) : null}
@@ -571,6 +793,13 @@ export function LeadsPage() {
         pending={create.isPending}
         onClose={() => setAddOpen(false)}
         onSubmit={(values) => create.mutate(values)}
+      />
+      <LeadNotesDialog
+        lead={notesLead}
+        pending={addNote.isPending || updateReminder.isPending}
+        onAddNote={(lead, body) => addNote.mutate({ lead, body })}
+        onClose={() => setNotesLead(null)}
+        onSetReminder={(lead, followUpAt) => updateReminder.mutate({ lead, followUpAt })}
       />
       <VehicleDetailsDialog
         vehicle={viewingVehicle}

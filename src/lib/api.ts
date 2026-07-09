@@ -109,6 +109,35 @@ export async function api<T>(path: string, options: RequestInit = {}, retry = tr
   return envelope.data as T
 }
 
+export async function apiBlob(path: string, options: RequestInit = {}, retry = true): Promise<Blob> {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  })
+
+  if (response.status === 401 && retry) {
+    const refreshedToken = await refreshSession()
+    if (refreshedToken) {
+      return apiBlob(path, options, false)
+    }
+  }
+
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      const envelope = await parseResponse<unknown>(response)
+      throw new ApiError(unwrapError(envelope.error), response.status, envelope.error)
+    }
+    throw new ApiError(await response.text(), response.status, null)
+  }
+
+  return response.blob()
+}
+
 export function post<T>(path: string, body?: unknown) {
   return api<T>(path, {
     method: 'POST',

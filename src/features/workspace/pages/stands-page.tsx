@@ -8,7 +8,7 @@ import { StandLimitCard } from '@/features/workspace/components/stands/stand-lim
 import { StandsTable } from '@/features/workspace/components/stands/stands-table'
 import { PageHeader } from '@/features/workspace/components/page-header'
 import type { BillingSummary, DealerLocation, Paginated } from '@/features/workspace/types'
-import { api, del, post } from '@/lib/api'
+import { api, del, patch, post } from '@/lib/api'
 import { queryClient } from '@/lib/query'
 import { routes } from '@/lib/routes'
 import { unwrapList } from '@/lib/utils'
@@ -26,6 +26,15 @@ export function StandsPage() {
       setOpen(false)
       queryClient.invalidateQueries({ queryKey: ['dealer-locations'] })
       queryClient.invalidateQueries({ queryKey: ['billing-summary'] })
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  const update = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: { name: string; districtSlug: string; address: string } }) =>
+      patch<DealerLocation>(`/v1/dealers/me/locations/${id}`, values),
+    onSuccess: async () => {
+      toast.success('Stand update submitted for admin review')
+      await queryClient.invalidateQueries({ queryKey: ['dealer-locations'] })
     },
     onError: (error) => toast.error(error.message),
   })
@@ -58,7 +67,12 @@ export function StandsPage() {
         onView={setViewingStand}
       />
       <AddStandDialog open={open} pending={create.isPending} onClose={() => setOpen(false)} onSubmit={(values) => create.mutate(values)} />
-      <StandDetailsDialog stand={viewingStand} onClose={() => setViewingStand(null)} />
+      <StandDetailsDialog
+        pending={update.isPending}
+        stand={viewingStand}
+        onClose={() => setViewingStand(null)}
+        onSubmit={(stand, values) => update.mutate({ id: stand.id, values })}
+      />
     </>
   )
 }

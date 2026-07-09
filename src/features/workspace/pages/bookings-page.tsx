@@ -166,7 +166,19 @@ function MiniCalendar({ appointments, selectedDate, onSelect }: { appointments: 
   )
 }
 
-function BookingCard({ appointment, onReschedule, onCancel, onConfirm }: { appointment: Appointment; onReschedule: (a: Appointment) => void; onCancel: (a: Appointment) => void; onConfirm: (a: Appointment) => void }) {
+function BookingCard({
+  appointment,
+  onReschedule,
+  onCancel,
+  onConfirm,
+  onMarkAttendance,
+}: {
+  appointment: Appointment
+  onReschedule: (a: Appointment) => void
+  onCancel: (a: Appointment) => void
+  onConfirm: (a: Appointment) => void
+  onMarkAttendance: (a: Appointment, status: 'show' | 'no_show') => void
+}) {
   const service = serviceFromAppointment(appointment)
   const pending = isPendingConfirmation(appointment.status)
   const name = appointment.buyerName ?? appointment.title ?? 'Booking'
@@ -206,15 +218,19 @@ function BookingCard({ appointment, onReschedule, onCancel, onConfirm }: { appoi
           </>
         ) : (
           <>
-            <span className="hidden items-center gap-1.5 text-[12px] font-bold text-lime-300 sm:inline-flex">
+            <span className={cn('hidden items-center gap-1.5 text-[12px] font-bold sm:inline-flex', appointment.attendanceStatus === 'no_show' ? 'text-red-300' : 'text-lime-300')}>
               <span className="h-2 w-2 rounded-full bg-lime-300" />
-              Confirmed
+              {appointment.attendanceStatus === 'show'
+                ? 'Show'
+                : appointment.attendanceStatus === 'no_show'
+                  ? 'No-show'
+                  : 'Confirmed'}
             </span>
             <Link className="grid h-9 w-9 place-items-center rounded-lg text-neutral-400 ring-1 ring-white/10 transition hover:bg-white/8 hover:text-white" title="Message buyer" to={chatLink(appointment)}>
               <MessageCircle className="h-4 w-4" />
             </Link>
             <div className="relative">
-              <CardMenu appointment={appointment} onReschedule={onReschedule} onCancel={onCancel} />
+              <CardMenu appointment={appointment} onReschedule={onReschedule} onCancel={onCancel} onMarkAttendance={onMarkAttendance} />
             </div>
           </>
         )}
@@ -223,7 +239,17 @@ function BookingCard({ appointment, onReschedule, onCancel, onConfirm }: { appoi
   )
 }
 
-function CardMenu({ appointment, onReschedule, onCancel }: { appointment: Appointment; onReschedule: (a: Appointment) => void; onCancel: (a: Appointment) => void }) {
+function CardMenu({
+  appointment,
+  onReschedule,
+  onCancel,
+  onMarkAttendance,
+}: {
+  appointment: Appointment
+  onReschedule: (a: Appointment) => void
+  onCancel: (a: Appointment) => void
+  onMarkAttendance: (a: Appointment, status: 'show' | 'no_show') => void
+}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
 
@@ -245,6 +271,12 @@ function CardMenu({ appointment, onReschedule, onCancel }: { appointment: Appoin
         <div className="absolute right-0 top-[calc(100%+6px)] z-30 w-44 overflow-hidden rounded-xl border border-white/10 bg-[#17171a] p-1.5 shadow-2xl shadow-black/40">
           <button className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-neutral-200 transition hover:bg-white/8" type="button" onClick={() => { setOpen(false); onReschedule(appointment) }}>
             <Clock className="h-4 w-4" /> Reschedule
+          </button>
+          <button className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-lime-200 transition hover:bg-lime-300/10" type="button" onClick={() => { setOpen(false); onMarkAttendance(appointment, 'show') }}>
+            <Calendar className="h-4 w-4" /> Mark show
+          </button>
+          <button className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-amber-200 transition hover:bg-amber-300/10" type="button" onClick={() => { setOpen(false); onMarkAttendance(appointment, 'no_show') }}>
+            <X className="h-4 w-4" /> Mark no-show
           </button>
           <button className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-red-300 transition hover:bg-red-500/10" type="button" onClick={() => { setOpen(false); onCancel(appointment) }}>
             <X className="h-4 w-4" /> Cancel booking
@@ -447,6 +479,15 @@ export function BookingsPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['appointments'] }); toast.success('Booking rescheduled.') },
     onError: (error) => toast.error(error.message),
   })
+  const markAttendance = useMutation({
+    mutationFn: ({ appointment, status }: { appointment: Appointment; status: 'show' | 'no_show' }) =>
+      patch<Appointment>(`/v1/appointments/${appointment.id}/${status === 'show' ? 'mark-show' : 'mark-no-show'}`, {}),
+    onSuccess: (_appointment, values) => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      toast.success(values.status === 'show' ? 'Booking marked as show.' : 'Booking marked as no-show.')
+    },
+    onError: (error) => toast.error(error.message),
+  })
 
   const today = startOfDay(new Date())
   const weekStart = startOfWeek(new Date())
@@ -555,6 +596,7 @@ export function BookingsPage() {
                         key={appointment.id}
                         onCancel={(a) => cancel.mutate(a.id)}
                         onConfirm={(a) => confirm.mutate(a.id)}
+                        onMarkAttendance={(a, status) => markAttendance.mutate({ appointment: a, status })}
                         onReschedule={(a) => setRescheduleTarget(a)}
                       />
                     ))}
@@ -590,6 +632,7 @@ export function BookingsPage() {
                         key={appointment.id}
                         onCancel={(a) => cancel.mutate(a.id)}
                         onConfirm={(a) => confirm.mutate(a.id)}
+                        onMarkAttendance={(a, status) => markAttendance.mutate({ appointment: a, status })}
                         onReschedule={(a) => setRescheduleTarget(a)}
                       />
                     ))}

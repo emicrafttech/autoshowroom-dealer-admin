@@ -32,7 +32,12 @@ export function SignInPage() {
           <FieldError message={form.formState.errors.email?.message} />
         </div>
         <div className="space-y-2.5">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="password">Password</Label>
+            <Link className="text-[12px] font-bold text-lime-300 hover:text-lime-200" to={routes.forgotPassword}>
+              Forgot password?
+            </Link>
+          </div>
           <Input id="password" type="password" autoComplete="current-password" placeholder="Enter your password" {...form.register('password')} />
           <FieldError message={form.formState.errors.password?.message} />
         </div>

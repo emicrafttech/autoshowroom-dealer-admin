@@ -1,16 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Eye, ExternalLink, MailWarning, MapPin, ShieldCheck, Trash2 } from 'lucide-react'
+import { Eye, ExternalLink, LockKeyhole, MailWarning, MapPin, ShieldCheck, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 import { BlurImage } from '@/components/blur-image'
-import { Badge, Button, Dialog, Input, Label, Textarea } from '@/components/ui'
+import { Badge, Button, Dialog, FieldError, Input, Label, Textarea } from '@/components/ui'
 import { AddStandDialog } from '@/features/workspace/components/stands/add-stand-dialog'
 import { DealerPublicPreviewDialog } from '@/features/workspace/components/dealer-public-preview-dialog'
-import { profileSchema } from '@/features/workspace/schemas'
+import { changePasswordSchema, profileSchema } from '@/features/workspace/schemas'
 import type { BillingSummary, DealerLocation, DealerProfile, DealerVerification, DealerVerificationDocument } from '@/features/workspace/types'
 import { api, patch, post } from '@/lib/api'
 import { clearSession, readSession, writeSession, type AuthUser } from '@/lib/auth'
@@ -97,6 +97,7 @@ export function AccountPage() {
   const [appealReason, setAppealReason] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const profile = useQuery({ queryKey: ['dealer-profile'], queryFn: () => api<DealerProfile>('/v1/dealers/me') })
   const verification = useQuery({ queryKey: ['dealer-verification'], queryFn: () => api<DealerVerification>('/v1/dealers/me/verification') })
@@ -110,12 +111,17 @@ export function AccountPage() {
   const locations = dealer?.locations ?? []
   const primaryLocation = locations.find((location) => location.isPrimary) ?? locations[0]
   const verificationApproved = dealer?.verificationStatus === 'approved'
+  const approvedDocumentCount = requiredDocuments.filter((item) => latestDocument(item.kind)?.status === 'approved').length
   const suspended = dealer?.operationalStatus === 'suspended'
   const activeSanctions = sanctionStatus.data?.sanctions ?? []
   const emailVerified = session?.user.emailVerified === true
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
     values: { name: dealer?.name ?? '', whatsapp: dealer?.whatsapp ?? '', description: dealer?.description ?? '' },
+  })
+  const passwordForm = useForm<z.infer<typeof changePasswordSchema>>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   })
   const previewValues = form.watch()
   const update = useMutation({
@@ -124,6 +130,26 @@ export function AccountPage() {
       toast.success('Profile updated')
       queryClient.invalidateQueries({ queryKey: ['dealer-profile'] })
     },
+  })
+  const changePassword = useMutation({
+    mutationFn: (values: z.infer<typeof changePasswordSchema>) =>
+      patch<{ ok: boolean }>('/v1/auth/password', {
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      }),
+    onSuccess: () => {
+      toast.success('Password updated')
+      setPasswordOpen(false)
+      passwordForm.reset()
+      const current = readSession()
+      if (current?.user.mustChangePassword) {
+        writeSession({
+          ...current,
+          user: { ...current.user, mustChangePassword: false },
+        })
+      }
+    },
+    onError: (error) => toast.error(error.message),
   })
   const deleteAccount = useMutation({
     mutationFn: () => post('/v1/dealers/me/delete-account', {}),
@@ -460,7 +486,9 @@ export function AccountPage() {
                 <h2 className="font-display text-[20px] font-semibold tracking-[-0.02em] text-white">Verification</h2>
                 <p className="mt-1 text-[13.5px] font-medium text-neutral-500">Build buyer trust and rank higher in search.</p>
               </div>
-              <Badge tone={verificationApproved ? 'lime' : 'amber'}>{verificationApproved ? '3 / 3 complete' : '1 / 3 complete'}</Badge>
+              <Badge tone={approvedDocumentCount === requiredDocuments.length ? 'lime' : 'amber'}>
+                Documents {approvedDocumentCount} / {requiredDocuments.length} approved
+              </Badge>
             </div>
             <input
               className="hidden"
@@ -575,10 +603,10 @@ export function AccountPage() {
                 <div className="mt-4 border-t border-white/8 pt-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-[12px] font-[900!important] text-white">Primary stand verification</div>
+                      <div className="text-[12px] font-[900!important] text-white">Primary stand premises status</div>
                       <p className="mt-1 text-[12px] font-medium text-neutral-500">
                         {premisesDocument
-                          ? 'Covered by your KYD Premises proof.'
+                          ? 'Premises proof is reviewed separately from KYD documents.'
                           : 'Upload Premises proof in Verification to cover this main stand.'}
                       </p>
                     </div>
@@ -645,6 +673,17 @@ export function AccountPage() {
           </section>
 
           <section className="rounded-[18px] border border-white/8 bg-[#101014]/80 p-5 shadow-2xl shadow-black/20">
+            <h2 className="font-display text-[19px] font-semibold text-white">Security</h2>
+            <p className="mt-1 text-[13px] font-medium leading-5 text-neutral-500">
+              Update the password you use with your verified email for dealer console sign-ins.
+            </p>
+            <Button className="mt-4 w-full" type="button" variant="secondary" onClick={() => setPasswordOpen(true)}>
+              <LockKeyhole className="h-4 w-4" />
+              Change password
+            </Button>
+          </section>
+
+          <section className="rounded-[18px] border border-white/8 bg-[#101014]/80 p-5 shadow-2xl shadow-black/20">
             <h2 className="font-display text-[19px] font-semibold text-white">Delete account</h2>
             <p className="mt-1 text-[13px] font-medium leading-5 text-neutral-500">Permanently close your dealer workspace when you no longer want to use AutoShowroom.</p>
             <div className="mt-4 rounded-2xl border border-red-300/20 bg-red-400/10 p-4">
@@ -671,6 +710,73 @@ export function AccountPage() {
         }}
         onClose={() => setPreviewOpen(false)}
       />
+      <Dialog
+        open={passwordOpen}
+        title="Change password"
+        onClose={() => {
+          if (changePassword.isPending) return
+          setPasswordOpen(false)
+          passwordForm.reset()
+        }}
+      >
+        <form
+          className="space-y-4"
+          onSubmit={passwordForm.handleSubmit((values) => changePassword.mutate(values))}
+        >
+          <p className="text-[13px] font-medium leading-6 text-neutral-400">
+            Enter your current password, then choose a new one for future dealer console sign-ins.
+          </p>
+          <div className="space-y-2.5">
+            <Label htmlFor="currentPassword">Current password</Label>
+            <Input
+              id="currentPassword"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Enter current password"
+              {...passwordForm.register('currentPassword')}
+            />
+            <FieldError message={passwordForm.formState.errors.currentPassword?.message} />
+          </div>
+          <div className="space-y-2.5">
+            <Label htmlFor="newPassword">New password</Label>
+            <Input
+              id="newPassword"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Create a strong password"
+              {...passwordForm.register('newPassword')}
+            />
+            <FieldError message={passwordForm.formState.errors.newPassword?.message} />
+          </div>
+          <div className="space-y-2.5">
+            <Label htmlFor="confirmNewPassword">Confirm new password</Label>
+            <Input
+              id="confirmNewPassword"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Re-enter your new password"
+              {...passwordForm.register('confirmPassword')}
+            />
+            <FieldError message={passwordForm.formState.errors.confirmPassword?.message} />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              disabled={changePassword.isPending}
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setPasswordOpen(false)
+                passwordForm.reset()
+              }}
+            >
+              Cancel
+            </Button>
+            <Button disabled={changePassword.isPending} type="submit">
+              {changePassword.isPending ? 'Updating...' : 'Update password'}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
       <Dialog open={deleteOpen} title="Delete dealer account" onClose={() => {
         if (deleteAccount.isPending) return
         setDeleteOpen(false)

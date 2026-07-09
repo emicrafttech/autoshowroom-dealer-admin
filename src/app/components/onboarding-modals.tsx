@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { Button, Dialog, FieldError, Input, Label } from '@/components/ui'
 import { patch } from '@/lib/api'
 import { readSession, writeSession, type AuthSession } from '@/lib/auth'
+import { abujaDistricts, normalizeDistrictSlug } from '@/lib/districts'
 import { queryClient } from '@/lib/query'
 
 const dealershipSetupSchema = z.object({
@@ -59,7 +60,11 @@ export function OnboardingModals({
     defaultValues: { password: '', confirmPassword: '' },
   })
   const saveSetup = useMutation({
-    mutationFn: (values: z.infer<typeof dealershipSetupSchema>) => patch<AuthSession>('/v1/auth/dealer-signup/setup', values),
+    mutationFn: (values: z.infer<typeof dealershipSetupSchema>) =>
+      patch<AuthSession>('/v1/auth/dealer-signup/setup', {
+        ...values,
+        districtSlug: normalizeDistrictSlug(values.districtSlug),
+      }),
     onSuccess: (nextSession) => {
       writeSession(nextSession)
       queryClient.invalidateQueries({ queryKey: ['dealer-profile'] })
@@ -124,7 +129,18 @@ export function OnboardingModals({
               </div>
               <div className="space-y-2.5">
                 <Label htmlFor="districtSlug">District</Label>
-                <Input id="districtSlug" placeholder="wuse" {...setupForm.register('districtSlug')} />
+                <select
+                  id="districtSlug"
+                  className="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-[#17171a] px-4 text-[14px] font-semibold text-white outline-none transition focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10"
+                  {...setupForm.register('districtSlug')}
+                >
+                  <option value="">Select district</option>
+                  {abujaDistricts.map((district) => (
+                    <option key={district.slug} value={district.slug}>
+                      {district.label}
+                    </option>
+                  ))}
+                </select>
                 <FieldError message={setupForm.formState.errors.districtSlug?.message} />
               </div>
             </div>

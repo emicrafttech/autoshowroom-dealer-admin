@@ -7,7 +7,7 @@ import { CarsHeader } from '@/features/workspace/components/cars/cars-header'
 import { CarsInventoryTable } from '@/features/workspace/components/cars/cars-inventory-table'
 import { CarsStatusTabs, type InventoryViewMode } from '@/features/workspace/components/cars/cars-status-tabs'
 import { VehicleDetailsDialog } from '@/features/workspace/components/cars/vehicle-details-dialog'
-import type { Paginated, Vehicle } from '@/features/workspace/types'
+import type { DealerLocation, Paginated, Vehicle } from '@/features/workspace/types'
 import { vehicleTitle } from '@/features/workspace/utils'
 import { api, del, patch } from '@/lib/api'
 import { queryClient } from '@/lib/query'
@@ -20,9 +20,11 @@ export function StockPage() {
   const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [standFilter, setStandFilter] = useState('all')
   const [viewMode, setViewMode] = useState<InventoryViewMode>('list')
   const [page, setPage] = useState(1)
   const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Paginated<Vehicle>>('/v1/vehicles') })
+  const locations = useQuery({ queryKey: ['dealer-locations'], queryFn: () => api<Paginated<DealerLocation>>('/v1/dealers/me/locations') })
   const updateStatus = useMutation({
     mutationFn: ({ vehicle, status }: { vehicle: Vehicle; status: 'available' | 'hidden' | 'reserved' | 'sold' }) =>
       patch<Vehicle>(`/v1/vehicles/${vehicle.id}/status`, {
@@ -54,11 +56,13 @@ export function StockPage() {
   const filteredVehicles = useMemo(() => {
     return allVehicles.filter((vehicle) => {
       const matchesStatus = statusFilter === 'all' || vehicle.status === statusFilter
+      const vehicleLocationId = vehicle.locationId ?? vehicle.location?.id
+      const matchesStand = standFilter === 'all' || vehicleLocationId === standFilter
       const query = search.trim().toLowerCase()
       const matchesSearch = !query || `${vehicleTitle(vehicle)} ${vehicle.year}`.toLowerCase().includes(query)
-      return matchesStatus && matchesSearch
+      return matchesStatus && matchesStand && matchesSearch
     })
-  }, [allVehicles, search, statusFilter])
+  }, [allVehicles, search, standFilter, statusFilter])
 
   const totalValue = allVehicles.reduce((sum, vehicle) => sum + (vehicle.priceNgn ?? 0), 0)
   const pageSize = 10
@@ -110,6 +114,23 @@ export function StockPage() {
         }}
         onViewModeChange={setViewMode}
       />
+      <div className="mb-4 flex justify-end">
+        <select
+          className="h-11 w-full max-w-xs cursor-pointer rounded-xl border border-white/10 bg-[#17171a] px-4 text-[13px] font-semibold text-white outline-none focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10"
+          value={standFilter}
+          onChange={(event) => {
+            setStandFilter(event.target.value)
+            setPage(1)
+          }}
+        >
+          <option value="all">All stands</option>
+          {unwrapList(locations.data).map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.name}
+            </option>
+          ))}
+        </select>
+      </div>
       <CarsInventoryTable
         currentPage={currentPage}
         inventoryCount={allVehicles.length}

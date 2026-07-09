@@ -13,6 +13,10 @@ export type DealerLocation = {
   premisesRejectedAt?: string
   premisesRejectionReason?: string
   evidenceFiles?: string[]
+  pendingChanges?: Record<string, unknown> | null
+  pendingChangesSubmittedAt?: string
+  pendingChangesReviewedAt?: string
+  pendingChangesRejectionReason?: string
   listingCount?: number
   createdAt?: string
   updatedAt?: string
@@ -64,6 +68,20 @@ export type Vehicle = {
   negotiable?: boolean
   notes?: string
   vin?: string
+  chassisNumber?: string
+  importType?: string
+  yearOfManufacture?: number | null
+  engineCapacityCc?: number | null
+  registrationPlate?: string
+  registrationState?: string
+  registrationLga?: string
+  customsDutyStatus?: string
+  customsReference?: string
+  customsClearedAt?: string | null
+  bodyHistory?: string
+  papersStatus?: string
+  dutyPaidClaim?: string
+  listingTrust?: string
   locationId?: string
   dealer?: { id: string; slug?: string; name: string; area?: string }
   location?: DealerLocation
@@ -121,6 +139,17 @@ export type Lead = {
   buyerPhone?: string
   vehicleTitle?: string
   stage?: string
+  followUpAt?: string | null
+  notes?: LeadNote[]
+  createdAt?: string
+}
+
+export type LeadNote = {
+  id: string
+  lead?: string
+  authorName?: string
+  body: string
+  sharedWithTeam?: boolean
   createdAt?: string
 }
 
@@ -131,6 +160,7 @@ export type BookingDayHours = {
 }
 
 export type BookingAvailability = {
+  locationId?: string | null
   timezone: string
   slotLengthMinutes: number
   maxBookingsPerDay: number
@@ -151,6 +181,8 @@ export type Appointment = {
   conversationId?: string
   scheduledAt?: string
   status: string
+  attendanceStatus?: 'unknown' | 'show' | 'no_show'
+  attendedAt?: string | null
   title?: string
   notes?: string
   createdAt?: string

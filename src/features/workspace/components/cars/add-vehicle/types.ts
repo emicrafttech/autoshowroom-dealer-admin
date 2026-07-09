@@ -9,6 +9,18 @@ export type VehicleDraftForm = {
   fuel: string
   colour: string
   vin: string
+  chassisNumber: string
+  yearOfManufacture: string
+  engineCapacityCc: string
+  registrationPlate: string
+  registrationState: string
+  registrationLga: string
+  customsDutyStatus: string
+  customsReference: string
+  bodyHistory: string
+  papersStatus: string
+  dutyPaidClaim: string
+  listingTrust: string
   notes: string
   priceNgn: string
   importType: 'tokunbo' | 'locally_used' | 'brand_new'
@@ -66,6 +78,18 @@ export const defaultVehicleDraftForm: VehicleDraftForm = {
   fuel: 'petrol',
   colour: '',
   vin: '',
+  chassisNumber: '',
+  yearOfManufacture: '',
+  engineCapacityCc: '',
+  registrationPlate: '',
+  registrationState: '',
+  registrationLga: '',
+  customsDutyStatus: 'unknown',
+  customsReference: '',
+  bodyHistory: 'unknown',
+  papersStatus: 'unknown',
+  dutyPaidClaim: 'unverified',
+  listingTrust: '',
   notes: '',
   priceNgn: '',
   importType: 'tokunbo',

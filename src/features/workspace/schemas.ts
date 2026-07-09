@@ -27,3 +27,14 @@ export const profileSchema = z.object({
   whatsapp: z.string().optional(),
   description: z.string().optional(),
 })
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(8, 'Current password is required'),
+    newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+    confirmPassword: z.string().min(8, 'Confirm your new password'),
+  })
+  .refine((values) => values.newPassword === values.confirmPassword, {
+    message: 'Passwords do not match.',
+    path: ['confirmPassword'],
+  })

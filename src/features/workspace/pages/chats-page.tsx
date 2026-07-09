@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
@@ -29,13 +29,22 @@ import type {
   Vehicle,
 } from "@/features/workspace/types";
 import { vehicleImageUrl, vehicleTitle } from "@/features/workspace/utils";
-import { API_BASE_URL, patch, post } from "@/lib/api";
+import { API_BASE_URL, api, patch, post } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { queryClient } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { cn, formatCompactNgn, formatDate, unwrapList } from "@/lib/utils";
 
 type ChatFilter = "all" | "unread" | "booked";
+
+type DealerMessageThread = {
+  id: string
+  subject: string
+  dealerName?: string
+  status: string
+  messages: Array<{ id: string; senderName?: string; senderType: 'platform' | 'dealer'; body: string; createdAt?: string }>
+  updatedAt?: string
+}
 
 function buyerName(conversation?: Conversation) {
   return buyerDisplayName(conversation?.buyer) === "Buyer"
@@ -150,12 +159,34 @@ export function ChatsPage() {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
+  const [selectedAdminThreadId, setSelectedAdminThreadId] = useState("");
+  const [adminReply, setAdminReply] = useState("");
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchParams] = useSearchParams();
   const paramConversationId = searchParams.get("conversation");
   const chats = useDealerChats();
+  const adminThreads = useQuery({
+    queryKey: ["dealer-admin-message-threads"],
+    queryFn: () => api<DealerMessageThread[]>("/v1/dealers/me/messages"),
+  });
+  const selectedAdminThread =
+    adminThreads.data?.find((thread) => thread.id === selectedAdminThreadId) ?? adminThreads.data?.[0];
+  const sendAdminReply = useMutation({
+    mutationFn: () =>
+      post<DealerMessageThread>("/v1/dealers/me/messages", {
+        threadId: selectedAdminThread?.id,
+        body: adminReply,
+      }),
+    onSuccess: (thread) => {
+      setSelectedAdminThreadId(thread.id);
+      setAdminReply("");
+      queryClient.invalidateQueries({ queryKey: ["dealer-admin-message-threads"] });
+      toast.success("Reply sent");
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const markRead = useMutation({
     mutationFn: (conversationId: string) =>
       post<Conversation>(`/v1/dealers/me/chats/${conversationId}/read`),
@@ -397,6 +428,46 @@ export function ChatsPage() {
             </button>
           ))}
         </div>
+        <section className="mt-4 rounded-2xl border border-white/8 bg-black/20 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-[14px] font-semibold text-white">Admin messages</h2>
+            <Badge tone="slate">{adminThreads.data?.length ?? 0}</Badge>
+          </div>
+          {selectedAdminThread ? (
+            <div className="mt-3 space-y-3">
+              <select
+                className="h-10 w-full cursor-pointer rounded-xl border border-white/10 bg-[#17171a] px-3 text-[12px] font-semibold text-white outline-none"
+                value={selectedAdminThread.id}
+                onChange={(event) => setSelectedAdminThreadId(event.target.value)}
+              >
+                {adminThreads.data?.map((thread) => (
+                  <option key={thread.id} value={thread.id}>{thread.subject}</option>
+                ))}
+              </select>
+              <div className="max-h-36 space-y-2 overflow-y-auto">
+                {selectedAdminThread.messages.slice(-3).map((message) => (
+                  <div className={cn('rounded-xl p-2 text-[12px] font-medium leading-5', message.senderType === 'dealer' ? 'bg-lime-300/10 text-lime-100' : 'bg-white/8 text-neutral-200')} key={message.id}>
+                    {message.body}
+                  </div>
+                ))}
+              </div>
+              <form
+                className="flex gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  if (adminReply.trim() && selectedAdminThread) sendAdminReply.mutate()
+                }}
+              >
+                <Input className="h-10 text-[12px]" placeholder="Reply..." value={adminReply} onChange={(event) => setAdminReply(event.target.value)} />
+                <Button disabled={sendAdminReply.isPending || !adminReply.trim()} size="sm" type="submit">
+                  Send
+                </Button>
+              </form>
+            </div>
+          ) : (
+            <p className="mt-2 text-[12px] font-medium text-neutral-500">No admin threads yet.</p>
+          )}
+        </section>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
           {hasConversations ? (
             <ChatConversationList

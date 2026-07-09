@@ -220,6 +220,23 @@ export function VehicleDetailsDialog({ vehicle, onClose, onEdit, onShare }: Vehi
               <SpecRow label="Fuel" value={vehicle.fuel ?? 'Not set'} />
               <SpecRow label="Body type" value={vehicle.bodyType ?? 'Not set'} />
               <SpecRow label="Exterior colour" value={vehicle.colour ?? 'Not set'} />
+              <SpecRow label="Chassis number" value={vehicle.chassisNumber ?? 'Not set'} />
+              <SpecRow label="Year of manufacture" value={vehicle.yearOfManufacture ?? 'Not set'} />
+              <SpecRow label="Engine capacity" value={vehicle.engineCapacityCc ? `${vehicle.engineCapacityCc.toLocaleString()} cc` : 'Not set'} />
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Registration and documents</div>
+            <div className="overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
+              <SpecRow label="Registration plate" value={vehicle.registrationPlate ?? 'Not set'} />
+              <SpecRow label="Registration state" value={vehicle.registrationState ?? 'Not set'} />
+              <SpecRow label="Registration LGA" value={vehicle.registrationLga ?? 'Not set'} />
+              <SpecRow label="Customs duty" value={vehicle.customsDutyStatus ?? 'unknown'} />
+              <SpecRow label="Customs reference" value={vehicle.customsReference ?? 'Not set'} />
+              <SpecRow label="Body history" value={vehicle.bodyHistory ?? 'unknown'} />
+              <SpecRow label="Papers status" value={vehicle.papersStatus ?? 'unknown'} />
+              <SpecRow label="Duty paid claim" value={vehicle.dutyPaidClaim ?? 'unverified'} />
             </div>
           </section>
 
@@ -266,6 +283,10 @@ export function VehicleDetailsDialog({ vehicle, onClose, onEdit, onShare }: Vehi
           <section className="mt-6">
             <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Description</div>
             <p className="text-[14px] font-medium leading-6 text-neutral-300">{vehicle.notes?.trim() || 'No description added yet.'}</p>
+          </section>
+          <section className="mt-6">
+            <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Trust notes</div>
+            <p className="text-[14px] font-medium leading-6 text-neutral-300">{vehicle.listingTrust?.trim() || 'No trust notes added yet.'}</p>
           </section>
         </div>
 

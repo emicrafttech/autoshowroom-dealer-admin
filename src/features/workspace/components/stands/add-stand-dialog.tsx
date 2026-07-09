@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
 import { Button, Dialog, Input, Label } from '@/components/ui'
 import { standSchema } from '@/features/workspace/schemas'
+import { abujaDistricts, normalizeDistrictSlug } from '@/lib/districts'
 
 type StandFormValues = z.infer<typeof standSchema>
 
@@ -25,15 +26,32 @@ export function AddStandDialog({ open, pending, onClose, onSubmit }: AddStandDia
     <Dialog open={open} title="Add stand" onClose={onClose}>
       <form
         className="space-y-4"
-        onSubmit={form.handleSubmit((values) => onSubmit({ ...values, evidenceFiles }))}
+        onSubmit={form.handleSubmit((values) =>
+          onSubmit({
+            ...values,
+            districtSlug: normalizeDistrictSlug(values.districtSlug),
+            evidenceFiles,
+          }),
+        )}
       >
         <div className="space-y-2">
           <Label>Name</Label>
           <Input {...form.register('name')} />
         </div>
         <div className="space-y-2">
-          <Label>District slug</Label>
-          <Input {...form.register('districtSlug')} />
+          <Label htmlFor="standDistrictSlug">District</Label>
+          <select
+            id="standDistrictSlug"
+            className="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-[#17171a] px-4 text-[14px] font-semibold text-white outline-none transition focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10"
+            {...form.register('districtSlug')}
+          >
+            <option value="">Select district</option>
+            {abujaDistricts.map((district) => (
+              <option key={district.slug} value={district.slug}>
+                {district.label}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-2">
           <Label>Address</Label>

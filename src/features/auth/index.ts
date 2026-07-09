@@ -1,3 +1,5 @@
 export { SignInPage } from '@/features/auth/sign-in-page'
 export { RegisterPage } from '@/features/auth/register-page'
 export { VerifyEmailPage } from '@/features/auth/verify-email-page'
+export { ForgotPasswordPage } from '@/features/auth/forgot-password-page'
+export { ResetPasswordPage } from '@/features/auth/reset-password-page'
