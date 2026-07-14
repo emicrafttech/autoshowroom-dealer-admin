@@ -145,6 +145,30 @@ export function post<T>(path: string, body?: unknown) {
   })
 }
 
+export async function postFormData<T>(path: string, formData: FormData, retry = true): Promise<T> {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+
+  if (response.status === 401 && retry) {
+    const refreshedToken = await refreshSession()
+    if (refreshedToken) {
+      return postFormData<T>(path, formData, false)
+    }
+  }
+
+  const envelope = await parseResponse<T>(response)
+  if (!response.ok) {
+    throw new ApiError(unwrapError(envelope.error), response.status, envelope.error)
+  }
+  return envelope.data as T
+}
+
 export function patch<T>(path: string, body: unknown) {
   return api<T>(path, {
     method: 'PATCH',

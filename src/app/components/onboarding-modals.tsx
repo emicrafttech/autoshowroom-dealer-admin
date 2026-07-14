@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -38,6 +39,15 @@ type OnboardingModalsProps = {
   onPasswordModalOpenChange: (open: boolean) => void
 }
 
+const STARTER_TRIAL_BENEFITS = [
+  '90-day free Starter founding trial',
+  'Up to 20 live listings',
+  '1 staff seat for your dealership',
+  'Verified badge, dealer profile, and video listings',
+  'Lead capture, inspection booking, and WhatsApp handoff',
+  'Basic analytics while you grow',
+]
+
 export function OnboardingModals({
   session,
   profile,
@@ -45,6 +55,7 @@ export function OnboardingModals({
   passwordModalOpen,
   onPasswordModalOpenChange,
 }: OnboardingModalsProps) {
+  const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
   const setupForm = useForm<z.infer<typeof dealershipSetupSchema>>({
     resolver: zodResolver(dealershipSetupSchema),
     values: {
@@ -86,6 +97,8 @@ export function OnboardingModals({
       toast.success('Secure login password set')
       onPasswordModalOpenChange(false)
       passwordForm.reset()
+      setWelcomeModalOpen(true)
+      queryClient.invalidateQueries({ queryKey: ['billing-summary'] })
     },
     onError: (error) => toast.error(error.message),
   })
@@ -174,6 +187,29 @@ export function OnboardingModals({
             Save secure password
           </Button>
         </form>
+      </Dialog>
+      <Dialog
+        open={welcomeModalOpen}
+        title="You're on the Starter trial"
+        onClose={() => setWelcomeModalOpen(false)}
+      >
+        <div className="space-y-4">
+          <p className="text-[13.5px] font-medium leading-6 text-neutral-400">
+            Welcome aboard. You&apos;ve been opted into a 90-day Starter founding trial at no charge.
+            After the trial, Starter renews at ₦20,000/mo — add a payment card before then to enable auto-renewal.
+          </p>
+          <ul className="space-y-2.5 rounded-[14px] border border-white/8 bg-white/[0.03] p-4">
+            {STARTER_TRIAL_BENEFITS.map((benefit) => (
+              <li className="flex items-start gap-2.5 text-[13px] font-semibold text-neutral-300" key={benefit}>
+                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-lime-300" />
+                {benefit}
+              </li>
+            ))}
+          </ul>
+          <Button className="w-full" type="button" onClick={() => setWelcomeModalOpen(false)}>
+            Start exploring
+          </Button>
+        </div>
       </Dialog>
     </>
   )

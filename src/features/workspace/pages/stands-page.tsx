@@ -52,9 +52,9 @@ export function StandsPage() {
       <PageHeader
         backTo={{ to: routes.account, label: 'Back to account settings' }}
         title="Stands"
-        description="Manage car premises as first-class dealer locations with verification state and subscription limits."
+        description="Manage car premises as first-class dealer locations with verification state."
         action={
-          <Button disabled={!summary.data?.canAddStand} type="button" onClick={() => setOpen(true)}>
+          <Button type="button" onClick={() => setOpen(true)}>
             Add stand
           </Button>
         }

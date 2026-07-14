@@ -3,18 +3,20 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Button, Dialog } from '@/components/ui'
 import { AddVehicleDialog } from '@/features/workspace/components/cars/add-vehicle-dialog'
+import { BulkUploadDialog } from '@/features/workspace/components/cars/bulk-upload-dialog'
 import { CarsHeader } from '@/features/workspace/components/cars/cars-header'
 import { CarsInventoryTable } from '@/features/workspace/components/cars/cars-inventory-table'
 import { CarsStatusTabs, type InventoryViewMode } from '@/features/workspace/components/cars/cars-status-tabs'
 import { VehicleDetailsDialog } from '@/features/workspace/components/cars/vehicle-details-dialog'
-import type { DealerLocation, Paginated, Vehicle } from '@/features/workspace/types'
+import type { BillingSummary, DealerLocation, Paginated, Vehicle } from '@/features/workspace/types'
 import { vehicleTitle } from '@/features/workspace/utils'
-import { api, del, patch } from '@/lib/api'
+import { api, del, patch, post } from '@/lib/api'
 import { queryClient } from '@/lib/query'
 import { unwrapList } from '@/lib/utils'
 
 export function StockPage() {
   const [open, setOpen] = useState(false)
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
   const [deletingVehicle, setDeletingVehicle] = useState<Vehicle | null>(null)
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
   const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null)
@@ -25,6 +27,13 @@ export function StockPage() {
   const [page, setPage] = useState(1)
   const vehicles = useQuery({ queryKey: ['vehicles'], queryFn: () => api<Paginated<Vehicle>>('/v1/vehicles') })
   const locations = useQuery({ queryKey: ['dealer-locations'], queryFn: () => api<Paginated<DealerLocation>>('/v1/dealers/me/locations') })
+  const billing = useQuery({
+    queryKey: ['billing-summary'],
+    queryFn: () => api<BillingSummary>('/v1/billing/summary'),
+  })
+  const canBulkUpload = Boolean(
+    billing.data?.entitlements?.canBulkUpload || billing.data?.entitlements?.bulkUpload,
+  )
   const updateStatus = useMutation({
     mutationFn: ({ vehicle, status }: { vehicle: Vehicle; status: 'available' | 'hidden' | 'reserved' | 'sold' }) =>
       patch<Vehicle>(`/v1/vehicles/${vehicle.id}/status`, {
@@ -34,6 +43,23 @@ export function StockPage() {
     onSuccess: (_vehicle, values) => {
       toast.success(`${vehicleTitle(values.vehicle)} marked ${values.status}`)
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  const toggleFeature = useMutation({
+    mutationFn: (vehicle: Vehicle) =>
+      post<Vehicle>(
+        `/v1/vehicles/${vehicle.id}/${vehicle.isFeatured ? 'unfeature' : 'feature'}`,
+        {},
+      ),
+    onSuccess: (vehicle) => {
+      toast.success(
+        vehicle.isFeatured
+          ? `${vehicleTitle(vehicle)} is now featured`
+          : `${vehicleTitle(vehicle)} is no longer featured`,
+      )
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['billing-summary'] })
     },
     onError: (error) => toast.error(error.message),
   })
@@ -95,10 +121,15 @@ export function StockPage() {
   return (
     <>
       <CarsHeader
+        activeListings={billing.data?.activeListings ?? 0}
+        canBulkUpload={canBulkUpload}
+        canPublish={billing.data?.canPublish !== false}
+        listingLimit={billing.data?.listingLimit}
         search={search}
         totalValue={totalValue}
         vehicleCount={allVehicles.length}
         onAddVehicle={() => setOpen(true)}
+        onBulkUpload={() => setBulkUploadOpen(true)}
         onSearchChange={(value) => {
           setSearch(value)
           setPage(1)
@@ -146,6 +177,7 @@ export function StockPage() {
         }}
         onShare={(vehicle) => void shareVehicle(vehicle)}
         onStatusChange={(vehicle, status) => updateStatus.mutate({ vehicle, status })}
+        onToggleFeature={(vehicle) => toggleFeature.mutate(vehicle)}
         onView={setViewingVehicle}
         onPageChange={setPage}
       />
@@ -189,6 +221,7 @@ export function StockPage() {
           queryClient.invalidateQueries({ queryKey: ['notifications'] })
         }}
       />
+      <BulkUploadDialog open={bulkUploadOpen} onClose={() => setBulkUploadOpen(false)} />
     </>
   )
 }

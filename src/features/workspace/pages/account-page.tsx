@@ -585,7 +585,9 @@ export function AccountPage() {
             <div className="flex items-center justify-between">
               <h2 className="font-display text-[19px] font-semibold text-white">Stands</h2>
               <span className="text-[12px] font-semibold text-neutral-600">
-                {summary.data ? `${summary.data.standCount}/${summary.data.standLimit}` : `${locations.length} location${locations.length === 1 ? '' : 's'}`}
+                {summary.data
+                  ? `${summary.data.standCount} stand${summary.data.standCount === 1 ? '' : 's'}`
+                  : `${locations.length} location${locations.length === 1 ? '' : 's'}`}
               </span>
             </div>
             {primaryLocation ? (
@@ -648,7 +650,7 @@ export function AccountPage() {
                 <div className="text-[13px] font-[900!important] text-red-100">Account suspended</div>
                 <p className="mt-1 text-[12px] font-medium leading-5 text-red-100/75">Verify your email before adding or managing stands.</p>
               </div>
-            ) : (summary.data?.canAddStand ?? locations.length === 0) ? (
+            ) : (
               <button
                 className="mt-4 inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[13px] font-[900!important] text-white transition hover:bg-white/10"
                 type="button"
@@ -656,19 +658,6 @@ export function AccountPage() {
               >
                 + Add a stand
               </button>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
-                <div className="text-[13px] font-[900!important] text-amber-100">Stand limit reached</div>
-                <p className="mt-1 text-[12px] font-medium leading-5 text-amber-100/75">
-                  You have used {summary.data?.standCount ?? locations.length} of {summary.data?.standLimit ?? locations.length} stands on your current plan.
-                </p>
-                <Link
-                  className="mt-3 inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-xl bg-amber-300 text-[13px] font-[900!important] text-neutral-950 transition hover:bg-amber-200"
-                  to={routes.billing}
-                >
-                  Upgrade to add stand
-                </Link>
-              </div>
             )}
           </section>
 

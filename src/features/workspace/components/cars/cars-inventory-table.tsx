@@ -20,6 +20,7 @@ type CarsInventoryTableProps = {
   onPageChange: (page: number) => void
   onShare: (vehicle: Vehicle) => void
   onStatusChange: (vehicle: Vehicle, status: 'available' | 'hidden' | 'reserved' | 'sold') => void
+  onToggleFeature?: (vehicle: Vehicle) => void
   onView: (vehicle: Vehicle) => void
 }
 
@@ -29,6 +30,7 @@ function VehicleActionsMenu({
   onEdit,
   onShare,
   onStatusChange,
+  onToggleFeature,
   onView,
   triggerClassName,
   menuPlacement = 'bottom',
@@ -38,6 +40,7 @@ function VehicleActionsMenu({
   onEdit: CarsInventoryTableProps['onEdit']
   onShare: CarsInventoryTableProps['onShare']
   onStatusChange: CarsInventoryTableProps['onStatusChange']
+  onToggleFeature?: CarsInventoryTableProps['onToggleFeature']
   onView: CarsInventoryTableProps['onView']
   triggerClassName?: string
   menuPlacement?: 'bottom' | 'top'
@@ -92,6 +95,12 @@ function VehicleActionsMenu({
             <Share2 className="h-6 w-6 text-neutral-400" />
             Share link
           </button>
+          {onToggleFeature ? (
+            <button className="flex h-14 w-full cursor-pointer items-center gap-4 rounded-xl px-3 text-[20px] font-[900!important] text-white transition hover:bg-white/8" type="button" onClick={() => runAction(() => onToggleFeature(vehicle))}>
+              <Tag className="h-6 w-6 text-lime-300" />
+              {vehicle.isFeatured ? 'Remove featured' : 'Feature listing'}
+            </button>
+          ) : null}
           <div className="my-3 h-px bg-white/10" />
           {vehicle.status !== 'hidden' ? (
             <button className="flex h-14 w-full cursor-pointer items-center gap-4 rounded-xl px-3 text-[20px] font-[900!important] text-white transition hover:bg-white/8" type="button" onClick={() => runAction(() => onStatusChange(vehicle, 'hidden'))}>
@@ -213,6 +222,7 @@ function InventoryGridCard({
   onEdit,
   onShare,
   onStatusChange,
+  onToggleFeature,
   onView,
 }: {
   vehicle: Vehicle
@@ -220,6 +230,7 @@ function InventoryGridCard({
   onEdit: CarsInventoryTableProps['onEdit']
   onShare: CarsInventoryTableProps['onShare']
   onStatusChange: CarsInventoryTableProps['onStatusChange']
+  onToggleFeature?: CarsInventoryTableProps['onToggleFeature']
   onView: CarsInventoryTableProps['onView']
 }) {
   const imageUrl = vehicleImageUrl(vehicle)
@@ -253,6 +264,11 @@ function InventoryGridCard({
           <span className={cn('h-1.5 w-1.5 rounded-full', vehicle.status === 'available' ? 'bg-lime-300' : vehicle.status === 'reserved' ? 'bg-amber-300' : 'bg-neutral-500')} />
           {vehicle.status}
         </span>
+        {vehicle.isFeatured ? (
+          <span className="absolute right-3 top-3 z-10 rounded-full bg-lime-300 px-2.5 py-1 text-[11px] font-[900!important] text-neutral-950">
+            Featured
+          </span>
+        ) : null}
       </div>
       <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
@@ -276,6 +292,7 @@ function InventoryGridCard({
             onEdit={onEdit}
             onShare={onShare}
             onStatusChange={onStatusChange}
+            onToggleFeature={onToggleFeature}
             onView={onView}
           />
         </div>
@@ -285,6 +302,7 @@ function InventoryGridCard({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={reviewTone}>{reviewLabel}</Badge>
+          {vehicle.isFeatured ? <Badge tone="lime">Featured</Badge> : null}
           {vehicle.openReviewIssueCount ? (
             <span className="text-[11px] font-bold text-red-300">
               {vehicle.openReviewIssueCount} issue{vehicle.openReviewIssueCount === 1 ? '' : 's'} to fix
@@ -302,6 +320,7 @@ function InventoryGrid({
   onEdit,
   onShare,
   onStatusChange,
+  onToggleFeature,
   onView,
 }: {
   vehicles: Vehicle[]
@@ -309,6 +328,7 @@ function InventoryGrid({
   onEdit: CarsInventoryTableProps['onEdit']
   onShare: CarsInventoryTableProps['onShare']
   onStatusChange: CarsInventoryTableProps['onStatusChange']
+  onToggleFeature?: CarsInventoryTableProps['onToggleFeature']
   onView: CarsInventoryTableProps['onView']
 }) {
   return (
@@ -321,6 +341,7 @@ function InventoryGrid({
           onEdit={onEdit}
           onShare={onShare}
           onStatusChange={onStatusChange}
+          onToggleFeature={onToggleFeature}
           onView={onView}
         />
       ))}
@@ -328,7 +349,22 @@ function InventoryGrid({
   )
 }
 
-export function CarsInventoryTable({ vehicles, totalCount, inventoryCount, currentPage, pageCount, viewMode, onAddVehicle, onDelete, onEdit, onPageChange, onShare, onStatusChange, onView }: CarsInventoryTableProps) {
+export function CarsInventoryTable({
+  vehicles,
+  totalCount,
+  inventoryCount,
+  currentPage,
+  pageCount,
+  viewMode,
+  onAddVehicle,
+  onDelete,
+  onEdit,
+  onPageChange,
+  onShare,
+  onStatusChange,
+  onToggleFeature,
+  onView,
+}: CarsInventoryTableProps) {
   const isEmpty = vehicles.length === 0
   const start = totalCount === 0 ? 0 : (currentPage - 1) * 10 + 1
   const end = Math.min(currentPage * 10, totalCount)
@@ -354,6 +390,7 @@ export function CarsInventoryTable({ vehicles, totalCount, inventoryCount, curre
               onEdit={onEdit}
               onShare={onShare}
               onStatusChange={onStatusChange}
+              onToggleFeature={onToggleFeature}
               onView={onView}
             />
             {paginationFooter}
@@ -417,6 +454,7 @@ export function CarsInventoryTable({ vehicles, totalCount, inventoryCount, curre
                 <td className="px-6 py-4">
                   <div className={cn('space-y-1', vehicle.status === 'sold' ? 'opacity-55' : '')}>
                     <Badge tone={reviewTone}>{reviewLabel}</Badge>
+                    {vehicle.isFeatured ? <Badge tone="lime">Featured</Badge> : null}
                     {vehicle.openReviewIssueCount ? (
                       <div className="text-[11px] font-bold text-red-300">
                         {vehicle.openReviewIssueCount} issue{vehicle.openReviewIssueCount === 1 ? '' : 's'} to fix
@@ -426,7 +464,15 @@ export function CarsInventoryTable({ vehicles, totalCount, inventoryCount, curre
                 </td>
                 <td className={cn('px-6 py-4 text-neutral-400', vehicle.status === 'sold' ? 'opacity-55' : '')}>{formatRelativeDate(vehicle.publishedAt ?? vehicle.createdAt)}</td>
                 <td className="px-6 py-4 text-right">
-                  <VehicleActionsMenu vehicle={vehicle} onDelete={onDelete} onEdit={onEdit} onShare={onShare} onStatusChange={onStatusChange} onView={onView} />
+                  <VehicleActionsMenu
+                    vehicle={vehicle}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                    onShare={onShare}
+                    onStatusChange={onStatusChange}
+                    onToggleFeature={onToggleFeature}
+                    onView={onView}
+                  />
                 </td>
               </tr>
             )

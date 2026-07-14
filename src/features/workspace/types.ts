@@ -23,6 +23,7 @@ export type DealerLocation = {
 }
 
 export type BillingSummary = {
+  planId?: string
   subscription?: {
     id: string
     plan: Plan
@@ -30,6 +31,8 @@ export type BillingSummary = {
     currentPeriodEnd?: string
     pendingPlan?: Plan
     pendingPlanEffectiveAt?: string
+    amountNgn?: number
+    billingInterval?: string
   } | null
   pendingDowngrade?: {
     planId: string
@@ -42,12 +45,34 @@ export type BillingSummary = {
     expMonth: string
     expYear: string
   } | null
-  listingLimit: number
+  trial?: {
+    isTrialing: boolean
+    trialDays: number
+    trialEndsAt?: string
+    renewPriceNgn: number
+    renewInterval: string
+    autoRenewEnabled: boolean
+    autoRenewBlockedUntilCard: boolean
+  } | null
+  listingLimit: number | null
   activeListings: number
   canPublish: boolean
-  standLimit: number
+  standLimit: number | null
   standCount: number
   canAddStand: boolean
+  staffLimit?: number | null
+  staffCount?: number
+  canInviteStaff?: boolean
+  featuredLimit?: number
+  featuredUsed?: number
+  canFeature?: boolean
+  entitlements?: {
+    bulkUpload?: boolean
+    canBulkUpload?: boolean
+    followUpReminders?: boolean
+    analyticsTier?: 'basic' | 'full'
+    [key: string]: unknown
+  }
   vehicleCount: number
 }
 
@@ -91,6 +116,9 @@ export type Vehicle = {
   openReviewIssueCount?: number
   coverMedia?: { url?: string }
   media?: { url?: string; kind?: string; status?: string }[]
+  isFeatured?: boolean
+  featuredAt?: string | null
+  featuredUntil?: string | null
   createdAt?: string
   updatedAt?: string
   publishedAt?: string
@@ -193,9 +221,19 @@ export type Plan = {
   id: string
   name: string
   priceNgn: number
-  listingLimit: number
-  standLimit: number
+  priceYearlyNgn?: number
+  listingLimit: number | null
+  standLimit: number | null
+  staffLimit?: number | null
+  featuredSlotsPerMonth?: number
+  bulkUpload?: boolean
+  followUpReminders?: boolean
+  analyticsTier?: 'basic' | 'full'
+  videosPerVehicle?: number
+  photosPerVehicle?: number
+  maxClipSeconds?: number
   features: string[]
+  entitlements?: Record<string, unknown>
 }
 
 export type Invoice = {

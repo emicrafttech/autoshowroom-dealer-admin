@@ -73,9 +73,14 @@ function quotedUpgradeAmount(plan: Plan, currentPlan?: Plan, periodEnd?: string)
   return plan.priceNgn;
 }
 
-function usagePercent(used?: number, limit?: number) {
-  if (!limit) return 0;
+function usagePercent(used?: number, limit?: number | null) {
+  if (limit == null || !limit) return 0;
   return Math.min(100, Math.round(((used ?? 0) / limit) * 100));
+}
+
+function limitLabel(used?: number, limit?: number | null) {
+  if (limit == null) return `${used ?? 0} / Unlimited`;
+  return `${used ?? 0}/${limit}`;
 }
 
 const DEALER_CAPABILITIES: Record<string, string> = {
@@ -216,14 +221,33 @@ function PlanCard({
       ) : null}
       <div className="mt-4 flex flex-1 flex-col gap-2 text-[13px] font-semibold text-neutral-400">
         <div className="flex items-center gap-2">
-          <Check className="h-4 w-4 shrink-0 text-lime-300" /> {plan.listingLimit}{" "}
-          live listings
+          <Check className="h-4 w-4 shrink-0 text-lime-300" />{" "}
+          {plan.listingLimit == null
+            ? "Unlimited live listings"
+            : `${plan.listingLimit} live listings`}
         </div>
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 shrink-0 text-lime-300" />{" "}
-          {plan.standLimit} dealer stands
+          {plan.staffLimit == null
+            ? "Unlimited staff seats"
+            : `${plan.staffLimit} staff seats`}
         </div>
-        {plan.features.slice(0, 4).map((feature) => (
+        {(plan.featuredSlotsPerMonth ?? 0) > 0 ? (
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 shrink-0 text-lime-300" />{" "}
+            {plan.featuredSlotsPerMonth} featured placements / month
+          </div>
+        ) : null}
+        {plan.bulkUpload ? (
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 shrink-0 text-lime-300" /> Bulk upload
+          </div>
+        ) : null}
+        <div className="flex items-center gap-2">
+          <Check className="h-4 w-4 shrink-0 text-lime-300" />{" "}
+          {plan.analyticsTier === "full" ? "Full analytics" : "Basic analytics"}
+        </div>
+        {plan.features.slice(0, 3).map((feature) => (
           <div className="flex items-center gap-2" key={feature}>
             <Check className="h-4 w-4 shrink-0 text-lime-300" />{" "}
             {planFeatureLabel(feature)}
@@ -368,16 +392,35 @@ export function BillingPage() {
     onError: (error) => toast.error(error.message),
   });
   const availablePlans = unwrapList(plans.data);
-  const currentPlan = summary.data?.subscription?.plan ?? availablePlans[0];
+  const planId =
+    summary.data?.subscription?.plan?.id ??
+    summary.data?.planId ??
+    undefined;
+  const currentPlan =
+    summary.data?.subscription?.plan ??
+    availablePlans.find((plan) => plan.id === planId) ??
+    availablePlans.find((plan) => plan.id === "starter") ??
+    availablePlans[0];
   const pendingDowngrade = summary.data?.pendingDowngrade;
   const paymentMethod = summary.data?.paymentMethod;
   const billingActionPending = checkout.isPending || downgrade.isPending;
   const paymentMethodActionPending = updatePaymentMethod.isPending;
-  const hasOtherPlans = availablePlans.some(
-    (plan) => plan.id !== currentPlan?.id,
-  );
+  const canChangePlan = availablePlans.length > 1 && !billingActionPending;
   const nextChargeDate = summary.data?.subscription?.currentPeriodEnd;
-  const nextChargeAmount = currentPlan?.priceNgn ?? 0;
+  const trial = summary.data?.trial;
+  const isTrialing =
+    Boolean(trial?.isTrialing) ||
+    summary.data?.subscription?.status === "trialing";
+  const renewAmount =
+    trial?.renewPriceNgn ??
+    currentPlan?.priceNgn ??
+    summary.data?.subscription?.amountNgn ??
+    0;
+  const nextChargeAmount = isTrialing ? renewAmount : (currentPlan?.priceNgn ?? renewAmount);
+  const autoRenewBlocked =
+    isTrialing &&
+    (trial?.autoRenewBlockedUntilCard !== false) &&
+    !paymentMethod;
 
   return (
     <div className="space-y-5">
@@ -392,19 +435,36 @@ export function BillingPage() {
 
       <section className="flex flex-col gap-4 rounded-[20px] border border-lime-300/25 bg-lime-300/10 p-5 shadow-2xl shadow-black/20 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h2 className="font-display text-[21px] font-semibold tracking-[-0.02em] text-white">
               {currentPlan?.name ?? "Starter"}
             </h2>
-            <Badge tone="lime">Current plan</Badge>
+            {isTrialing ? (
+              <Badge tone="amber">Free trial</Badge>
+            ) : (
+              <Badge tone="lime">Current plan</Badge>
+            )}
           </div>
-          <p className="mt-2 text-[13px] font-medium text-lime-100/70">
-            Renews{" "}
-            {nextChargeDate
-              ? formatDate(nextChargeDate)
-              : "at the next billing cycle"}{" "}
-            · Naira billing
-          </p>
+          {isTrialing ? (
+            <p className="mt-2 text-[13px] font-medium text-lime-100/70">
+              {trial?.trialDays ?? 90}-day founding trial
+              {nextChargeDate ? ` · ends ${formatDate(nextChargeDate)}` : ""}
+              . You will renew at {formatNgn(renewAmount)}/mo after the trial.
+            </p>
+          ) : (
+            <p className="mt-2 text-[13px] font-medium text-lime-100/70">
+              Renews{" "}
+              {nextChargeDate
+                ? formatDate(nextChargeDate)
+                : "at the next billing cycle"}{" "}
+              · Naira billing
+            </p>
+          )}
+          {autoRenewBlocked ? (
+            <p className="mt-2 text-[13px] font-semibold text-amber-200">
+              Auto-renewal is blocked until you add a payment card.
+            </p>
+          ) : null}
           {pendingDowngrade ? (
             <p className="mt-2 text-[13px] font-semibold text-amber-200">
               Downgrading to {pendingDowngrade.planName} on{" "}
@@ -414,11 +474,23 @@ export function BillingPage() {
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <div className="font-display text-[28px] font-semibold text-white">
-            {formatNgn(currentPlan?.priceNgn ?? 0)}
-            <span className="text-[13px] text-neutral-400">/mo</span>
+            {isTrialing ? (
+              <>
+                Free
+                <span className="text-[13px] text-neutral-400">
+                  {" "}
+                  · then {formatNgn(renewAmount)}/mo
+                </span>
+              </>
+            ) : (
+              <>
+                {formatNgn(currentPlan?.priceNgn ?? 0)}
+                <span className="text-[13px] text-neutral-400">/mo</span>
+              </>
+            )}
           </div>
           <Button
-            disabled={!hasOtherPlans || billingActionPending}
+            disabled={!canChangePlan}
             type="button"
             onClick={() => setPlansDialogOpen(true)}
           >
@@ -459,34 +531,51 @@ export function BillingPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatUsageCard
-          helper="Active listings against plan limit"
+          helper={
+            summary.data?.listingLimit == null
+              ? "Unlimited listings on your plan"
+              : "Active listings against plan limit"
+          }
           label="Listing usage"
           percent={usagePercent(
             summary.data?.activeListings,
             summary.data?.listingLimit,
           )}
-          value={`${summary.data?.activeListings ?? 0}/${summary.data?.listingLimit ?? 0}`}
+          value={limitLabel(
+            summary.data?.activeListings,
+            summary.data?.listingLimit,
+          )}
         />
         <StatUsageCard
           helper={
-            summary.data?.canAddStand
-              ? "Multi-stand capacity available"
-              : "At capacity, upgrade for multi-stand"
+            summary.data?.canInviteStaff
+              ? "Staff seats available"
+              : "At capacity — upgrade for more seats"
           }
-          label="Stand usage"
+          label="Staff seats"
           percent={usagePercent(
-            summary.data?.standCount,
-            summary.data?.standLimit,
+            summary.data?.staffCount,
+            summary.data?.staffLimit,
           )}
           tone="amber"
-          value={`${summary.data?.standCount ?? 0}/${summary.data?.standLimit ?? 1}`}
+          value={limitLabel(
+            summary.data?.staffCount,
+            summary.data?.staffLimit,
+          )}
         />
         <StatUsageCard
-          helper="Total stock in the dealer account"
-          label="Vehicle count"
-          percent={Math.min(100, (summary.data?.vehicleCount ?? 0) * 20)}
+          helper={
+            summary.data?.canFeature
+              ? "Featured placements this month"
+              : "Upgrade to feature listings"
+          }
+          label="Featured"
+          percent={usagePercent(
+            summary.data?.featuredUsed,
+            summary.data?.featuredLimit,
+          )}
           tone="blue"
-          value={summary.data?.vehicleCount ?? 0}
+          value={`${summary.data?.featuredUsed ?? 0}/${summary.data?.featuredLimit ?? 0}`}
         />
       </div>
 
@@ -575,8 +664,8 @@ export function BillingPage() {
                   No payment card added yet
                 </div>
                 <p className="mt-1 text-[12px] font-medium leading-5 text-neutral-500">
-                  {paymentMethod
-                    ? "Use a small verification charge to replace your saved card."
+                  {autoRenewBlocked
+                    ? "Auto-renewal cannot run without a card. Add one before your trial ends."
                     : "Pay a small verification charge to save your card for renewals."}
                 </p>
               </div>
@@ -598,23 +687,40 @@ export function BillingPage() {
 
           <section className="rounded-[20px] border border-white/8 bg-[#101014]/80 p-5 shadow-2xl shadow-black/20">
             <h2 className="font-display text-[19px] font-semibold text-white">
-              Next charge
+              {isTrialing ? "After trial" : "Next charge"}
             </h2>
             <div className="mt-5 space-y-4 border-b border-white/8 pb-5">
               <div className="flex items-center justify-between text-[13px]">
-                <span className="font-semibold text-neutral-500">Amount</span>
+                <span className="font-semibold text-neutral-500">
+                  {isTrialing ? "Renewal amount" : "Amount"}
+                </span>
                 <span className="font-[900!important] text-white">
                   {formatNgn(nextChargeAmount)}
+                  {isTrialing ? "/mo" : ""}
                 </span>
               </div>
               <div className="flex items-center justify-between text-[13px]">
-                <span className="font-semibold text-neutral-500">Date</span>
+                <span className="font-semibold text-neutral-500">
+                  {isTrialing ? "Trial ends" : "Date"}
+                </span>
                 <span className="font-[900!important] text-white">
                   {nextChargeDate
                     ? formatDate(nextChargeDate)
                     : "Not scheduled"}
                 </span>
               </div>
+              {isTrialing ? (
+                <div className="flex items-center justify-between gap-3 text-[13px]">
+                  <span className="font-semibold text-neutral-500">Auto-renewal</span>
+                  <span
+                    className={`font-[900!important] ${
+                      autoRenewBlocked ? "text-amber-200" : "text-lime-200"
+                    }`}
+                  >
+                    {autoRenewBlocked ? "Blocked — add a card" : "Enabled"}
+                  </span>
+                </div>
+              ) : null}
             </div>
             <button
               className="mt-5 cursor-pointer text-[13px] font-[900!important] text-red-300"

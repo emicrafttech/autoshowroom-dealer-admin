@@ -2,15 +2,17 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 import { MoreHorizontal, RefreshCw, Send, Trash2, UserPlus } from 'lucide-react'
 import { Badge, Button, Input } from '@/components/ui'
 import { inviteSchema } from '@/features/workspace/schemas'
-import type { Paginated, Staff } from '@/features/workspace/types'
+import type { BillingSummary, Paginated, Staff } from '@/features/workspace/types'
 import { api, del, patch, post } from '@/lib/api'
 import { queryClient } from '@/lib/query'
 import { readSession } from '@/lib/auth'
+import { routes } from '@/lib/routes'
 import { cn, unwrapList } from '@/lib/utils'
 
 function initials(name: string) {
@@ -153,9 +155,26 @@ export function TeamPage() {
   const currentRole = session?.user.role
   const form = useForm<z.infer<typeof inviteSchema>>({ resolver: zodResolver(inviteSchema), defaultValues: { email: '', name: '', role: 'sales' } })
   const staff = useQuery({ queryKey: ['staff'], queryFn: () => api<Paginated<Staff>>('/v1/dealers/me/staff') })
+  const billing = useQuery({
+    queryKey: ['billing-summary'],
+    queryFn: () => api<BillingSummary>('/v1/billing/summary'),
+  })
   const members = unwrapList(staff.data)
   const activeMembers = members.filter((member) => member.is_active && !member.invitePending)
   const pendingInvites = members.filter((member) => member.invitePending)
+  const staffUsed = billing.data?.staffCount ?? activeMembers.length
+  const staffLimit = billing.data?.staffLimit
+  const canInviteStaff = billing.data?.canInviteStaff !== false
+  const seatsRemaining =
+    staffLimit == null ? null : Math.max(0, staffLimit - staffUsed)
+  const seatsLabel =
+    staffLimit == null ? `${staffUsed} / Unlimited` : `${staffUsed}/${staffLimit}`
+  const seatsHelper =
+    staffLimit == null
+      ? 'Unlimited staff seats on your plan'
+      : seatsRemaining === 0
+        ? 'At capacity — upgrade for more seats'
+        : `${seatsRemaining} seat${seatsRemaining === 1 ? '' : 's'} remaining on your plan`
   const invite = useMutation({
     mutationFn: (values: z.infer<typeof inviteSchema>) => post<Staff>('/v1/dealers/me/staff', values),
     onSuccess: (member) => {
@@ -166,6 +185,7 @@ export function TeamPage() {
       }
       form.reset()
       queryClient.invalidateQueries({ queryKey: ['staff'] })
+      queryClient.invalidateQueries({ queryKey: ['billing-summary'] })
     },
     onError: (error) => toast.error(error.message),
   })
@@ -186,6 +206,7 @@ export function TeamPage() {
     onSuccess: () => {
       toast.success('Team member deactivated')
       queryClient.invalidateQueries({ queryKey: ['staff'] })
+      queryClient.invalidateQueries({ queryKey: ['billing-summary'] })
     },
     onError: (error) => toast.error(error.message),
   })
@@ -194,6 +215,7 @@ export function TeamPage() {
     onSuccess: () => {
       toast.success('Team member reactivated')
       queryClient.invalidateQueries({ queryKey: ['staff'] })
+      queryClient.invalidateQueries({ queryKey: ['billing-summary'] })
     },
     onError: (error) => toast.error(error.message),
   })
@@ -213,14 +235,22 @@ export function TeamPage() {
         <div>
           <h1 className="font-display text-[34px] font-semibold leading-tight tracking-[-0.035em] text-white">Team</h1>
           <p className="mt-2 text-[14px] font-medium text-neutral-400">Invite, monitor, and manage who can access your dealer workspace.</p>
+          <p className="mt-2 text-[13px] font-semibold text-lime-200/80">
+            Plan seats {seatsLabel}
+            {staffLimit == null ? '' : ` · ${seatsHelper}`}
+          </p>
         </div>
-        <Button type="button" onClick={() => document.getElementById('team-invite-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+        <Button
+          disabled={!canInviteStaff}
+          type="button"
+          onClick={() => document.getElementById('team-invite-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+        >
           <UserPlus className="h-4 w-4" />
           Invite staff
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-[18px] border border-white/8 bg-[#101014]/80 p-5 shadow-2xl shadow-black/20">
           <div className="text-[12px] font-semibold text-neutral-500">Total members</div>
           <div className="mt-3 font-display text-[31px] font-semibold text-white">{members.length}</div>
@@ -232,6 +262,16 @@ export function TeamPage() {
         <div className="rounded-[18px] border border-white/8 bg-[#101014]/80 p-5 shadow-2xl shadow-black/20">
           <div className="text-[12px] font-semibold text-neutral-500">Pending invites</div>
           <div className="mt-3 font-display text-[31px] font-semibold text-amber-300">{pendingInvites.length}</div>
+        </div>
+        <div className="rounded-[18px] border border-lime-300/20 bg-lime-300/8 p-5 shadow-2xl shadow-black/20">
+          <div className="text-[12px] font-semibold text-lime-100/70">Plan seats</div>
+          <div className="mt-3 font-display text-[31px] font-semibold text-white">{seatsLabel}</div>
+          <p className="mt-2 text-[12px] font-medium text-neutral-500">{seatsHelper}</p>
+          {!canInviteStaff ? (
+            <Link className="mt-3 inline-block text-[12px] font-[900!important] text-lime-300" to={routes.billing}>
+              Upgrade plan
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -298,19 +338,33 @@ export function TeamPage() {
         <aside className="space-y-5">
           <section className="rounded-[20px] border border-white/8 bg-[#101014]/80 p-5 shadow-2xl shadow-black/20" id="team-invite-form">
             <h2 className="font-display text-[20px] font-semibold text-white">Invite a teammate</h2>
-            <p className="mt-1 text-[13px] font-medium text-neutral-500">They’ll get access to join this workspace.</p>
+            <p className="mt-1 text-[13px] font-medium text-neutral-500">
+              {canInviteStaff
+                ? 'They’ll get access to join this workspace.'
+                : 'Your plan has no free seats left. Upgrade to invite more staff.'}
+            </p>
             <form className="mt-5 space-y-3" onSubmit={form.handleSubmit((values) => invite.mutate(values))}>
-              <Input placeholder="Full name" {...form.register('name')} />
-              <Input placeholder="Email address" type="email" {...form.register('email')} />
-              <select className="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-[#17171a] px-4 text-[14px] font-semibold text-white outline-none focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10" {...form.register('role')}>
+              <Input disabled={!canInviteStaff} placeholder="Full name" {...form.register('name')} />
+              <Input disabled={!canInviteStaff} placeholder="Email address" type="email" {...form.register('email')} />
+              <select
+                className="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-[#17171a] px-4 text-[14px] font-semibold text-white outline-none focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canInviteStaff}
+                {...form.register('role')}
+              >
                 <option value="sales">Sales</option>
                 <option value="manager">Manager</option>
                 <option value="owner">Owner</option>
               </select>
-              <Button className="w-full" disabled={invite.isPending} type="submit">
-                <Send className="h-4 w-4" />
-                {invite.isPending ? 'Sending...' : 'Send invite'}
-              </Button>
+              {canInviteStaff ? (
+                <Button className="w-full" disabled={invite.isPending} type="submit">
+                  <Send className="h-4 w-4" />
+                  {invite.isPending ? 'Sending...' : 'Send invite'}
+                </Button>
+              ) : (
+                <Button className="w-full" type="button" onClick={() => { window.location.assign(routes.billing) }}>
+                  Upgrade for more seats
+                </Button>
+              )}
             </form>
           </section>
 
