@@ -9,6 +9,7 @@ type CatalogTextFieldProps = {
   options: string[]
   disabled?: boolean
   disabledMessage?: string
+  optional?: boolean
   onFocus?: () => void
   onChange: (value: string) => void
 }
@@ -20,6 +21,7 @@ export function CatalogTextField({
   options,
   disabled = false,
   disabledMessage,
+  optional = false,
   onFocus,
   onChange,
 }: CatalogTextFieldProps) {
@@ -30,7 +32,10 @@ export function CatalogTextField({
 
   return (
     <div className={`group relative space-y-2 ${disabled ? 'cursor-not-allowed' : ''}`}>
-      <Label>{label}</Label>
+      <Label>
+        {label}
+        {optional ? <span className="normal-case tracking-normal text-neutral-600"> optional</span> : null}
+      </Label>
       <div className="relative" title={disabled ? disabledMessage : undefined}>
         <Input
           className={`pr-10 ${disabled ? 'cursor-not-allowed border-white/5 bg-white/[0.035] text-neutral-600 opacity-60 placeholder:text-neutral-700 focus:border-white/5 focus:ring-0' : ''}`}

@@ -8,24 +8,31 @@ type DetailsStepProps = {
   form: VehicleDraftForm
   makes: string[]
   models: string[]
+  trims: string[]
   onFieldChange: UpdateVehicleField
   onMakeChange: (value: string) => void
+  onModelChange: (value: string) => void
   onYearChange: (value: string) => void
   onLoadMakes: () => void
   onLoadModels: () => void
+  onLoadTrims: () => void
 }
 
 export function DetailsStep({
   form,
   makes,
   models,
+  trims,
   onFieldChange,
   onMakeChange,
+  onModelChange,
   onYearChange,
   onLoadMakes,
   onLoadModels,
+  onLoadTrims,
 }: DetailsStepProps) {
   const makeMissing = !form.make.trim()
+  const modelMissing = !form.model.trim()
 
   return (
     <div className="space-y-6">
@@ -48,30 +55,28 @@ export function DetailsStep({
               disabledMessage="Choose a make first."
               label="Model"
               options={models}
-              placeholder="RC 350 F Sport"
+              placeholder="RC"
               value={form.model}
               onFocus={onLoadModels}
-              onChange={(value) => onFieldChange('model', value)}
+              onChange={onModelChange}
             />
           </div>
           <div className="space-y-2">
             <Label>Year</Label>
             <Input placeholder="2020" inputMode="numeric" value={form.year} onChange={(event) => onYearChange(onlyDigits(event.target.value))} />
           </div>
-          <div className={`group relative space-y-2 ${makeMissing ? 'cursor-not-allowed' : ''}`} title={makeMissing ? 'Choose a make first.' : undefined}>
-            <Label>Trim <span className="normal-case tracking-normal text-neutral-600">optional</span></Label>
-            <Input
-              className={makeMissing ? 'cursor-not-allowed border-white/5 bg-white/[0.035] text-neutral-600 opacity-60 placeholder:text-neutral-700 focus:border-white/5 focus:ring-0' : ''}
-              disabled={makeMissing}
-              placeholder="F Sport AWD"
+          <div onFocus={onLoadTrims}>
+            <CatalogTextField
+              disabled={makeMissing || modelMissing}
+              disabledMessage={makeMissing ? 'Choose a make first.' : 'Choose a model first.'}
+              label="Trim"
+              optional
+              options={trims}
+              placeholder="F Sport"
               value={form.trim}
-              onChange={(event) => onFieldChange('trim', event.target.value)}
+              onFocus={onLoadTrims}
+              onChange={(value) => onFieldChange('trim', value)}
             />
-            {makeMissing ? (
-              <div className="pointer-events-none absolute left-0 top-[calc(100%+8px)] z-40 hidden w-max max-w-[260px] rounded-lg border border-white/10 bg-[#17171a] px-3 py-2 text-[12px] font-bold text-neutral-300 shadow-2xl shadow-black/40 group-hover:block">
-                Choose a make first.
-              </div>
-            ) : null}
           </div>
         </div>
       </section>

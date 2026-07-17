@@ -17,6 +17,7 @@ import {
   defaultVehicleDraftForm,
   type CatalogMakesResponse,
   type CatalogModelsResponse,
+  type CatalogTrimsResponse,
   type SelectedMedia,
   type UpdateVehicleField,
   type UploadProgress,
@@ -111,6 +112,7 @@ export function AddVehicleDialog({ editingVehicle = null, open, onClose, onCompl
   const [issueResponses, setIssueResponses] = useState<Record<string, string>>({})
   const [makes, setMakes] = useState<string[]>([])
   const [models, setModels] = useState<string[]>([])
+  const [trims, setTrims] = useState<string[]>([])
   const locations = useQuery({
     enabled: open,
     queryKey: ['dealer-locations'],
@@ -179,17 +181,56 @@ export function AddVehicleDialog({ editingVehicle = null, open, onClose, onCompl
     }
   }
 
+  async function loadTrims(make: string, model: string) {
+    if (!make.trim() || !model.trim()) {
+      setTrims([])
+      return
+    }
+    try {
+      const searchParams = new URLSearchParams({ make, model })
+      const response = await api<CatalogTrimsResponse>(`/v1/catalog/trims?${searchParams.toString()}`)
+      setTrims(normalizeCatalogItems(response.trims))
+    } catch {
+      setTrims([])
+    }
+  }
+
   const updateField: UpdateVehicleField = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }))
     setError('')
   }
 
   function updateMake(value: string) {
-    setForm((current) => ({ ...current, make: value, model: current.make === value ? current.model : '', trim: current.make === value ? current.trim : '' }))
-    setModels([])
+    const makeChanged = form.make !== value
+    setForm((current) => ({
+      ...current,
+      make: value,
+      model: makeChanged ? '' : current.model,
+      trim: makeChanged ? '' : current.trim,
+    }))
+    if (makeChanged) {
+      setModels([])
+      setTrims([])
+    }
     setError('')
     if (value.trim()) {
       void loadModels(value, form.year)
+    }
+  }
+
+  function updateModel(value: string) {
+    const modelChanged = form.model !== value
+    setForm((current) => ({
+      ...current,
+      model: value,
+      trim: modelChanged ? '' : current.trim,
+    }))
+    if (modelChanged) {
+      setTrims([])
+    }
+    setError('')
+    if (form.make.trim() && value.trim()) {
+      void loadTrims(form.make, value)
     }
   }
 
@@ -338,10 +379,13 @@ export function AddVehicleDialog({ editingVehicle = null, open, onClose, onCompl
               form={form}
               makes={makes}
               models={models}
+              trims={trims}
               onFieldChange={updateField}
               onLoadMakes={() => void loadMakes()}
               onLoadModels={() => void loadModels(form.make, form.year)}
+              onLoadTrims={() => void loadTrims(form.make, form.model)}
               onMakeChange={updateMake}
+              onModelChange={updateModel}
               onYearChange={updateYear}
             />
           ) : null}

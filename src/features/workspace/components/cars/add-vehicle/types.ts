@@ -57,6 +57,13 @@ export type CatalogModelsResponse = {
   source: string
 }
 
+export type CatalogTrimsResponse = {
+  make: string
+  model: string
+  trims: Array<string | { name: string }>
+  source: string
+}
+
 export type UploadSessionResponse = {
   items: Array<{
     mediaId: string
