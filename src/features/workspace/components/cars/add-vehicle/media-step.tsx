@@ -12,10 +12,16 @@ type MediaStepProps = {
 
 export function MediaStep({ existingMedia = [], media, selectedVideos, onAddFiles, onRemoveMedia }: MediaStepProps) {
   const existingVideos = existingMedia.filter((item) => item.kind === 'video' && item.url)
+  const existingPhotos = existingMedia.filter((item) => item.kind === 'photo' && item.url)
+  const selectedPhotos = media.filter((item) => item.kind === 'photo')
   const leadVideo = selectedVideos[0]
   const leadExistingVideo = existingVideos[0]
   const totalMedia = existingMedia.length + media.length
   const totalVideos = existingVideos.length + selectedVideos.length
+  const totalPhotos = existingPhotos.length + selectedPhotos.length
+  const canAddVideos = totalVideos < 5
+  const canAddPhotos = totalPhotos < 10
+  const canAddMedia = canAddVideos || canAddPhotos
 
   function addMixedFiles(files: FileList | null) {
     if (!files) return
@@ -25,8 +31,8 @@ export function MediaStep({ existingMedia = [], media, selectedVideos, onAddFile
     photos.forEach((file) => photoList.items.add(file))
     const videoList = new DataTransfer()
     videos.forEach((file) => videoList.items.add(file))
-    onAddFiles(photoList.files, 'photo')
-    onAddFiles(videoList.files, 'video')
+    if (photoList.files.length) onAddFiles(photoList.files, 'photo')
+    if (videoList.files.length) onAddFiles(videoList.files, 'video')
   }
 
   return (
@@ -66,15 +72,22 @@ export function MediaStep({ existingMedia = [], media, selectedVideos, onAddFile
               <p className="mt-1 text-[12px] font-medium text-neutral-500">Use clean, sharp video, ideally 30-60 seconds.</p>
             </div>
           )}
-          <input className="hidden" type="file" accept="video/*" multiple onChange={(event) => onAddFiles(event.target.files, 'video')} />
+          <input
+            className="hidden"
+            type="file"
+            accept="video/*"
+            multiple
+            disabled={!canAddVideos}
+            onChange={(event) => onAddFiles(event.target.files, 'video')}
+          />
         </label>
         <p className="mt-2 text-[12px] font-medium leading-5 text-neutral-500">
-          At least 6 clean, sharp media files are required before publishing, including a minimum of 3 videos. Videos and images should be clear, bright, and free from blur.
+          At least 6 clean, sharp media files are required before publishing, including a minimum of 3 videos. Max 5 videos and 10 images per listing. Videos and images should be clear, bright, and free from blur.
         </p>
       </section>
 
       <section>
-        <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Photos & media <span className="text-neutral-600">{totalMedia} of 6 minimum · {totalVideos} of 3 videos</span></div>
+        <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Photos & media <span className="text-neutral-600">{totalMedia} of 6 minimum · {totalVideos}/5 videos · {totalPhotos}/10 images</span></div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {existingMedia.map((item, index) => (
             <div className="group relative aspect-[1.35] overflow-hidden rounded-[14px] border border-white/10 bg-white/5" key={`${item.url}-${index}`}>
@@ -102,13 +115,15 @@ export function MediaStep({ existingMedia = [], media, selectedVideos, onAddFile
               </button>
             </div>
           ))}
-          <label className="grid aspect-[1.35] cursor-pointer place-items-center rounded-[14px] border border-dashed border-white/15 bg-white/5 text-center transition hover:border-lime-300/40">
-            <div>
-              <ImagePlus className="mx-auto h-6 w-6 text-neutral-500" />
-              <div className="mt-2 text-[12px] font-bold text-neutral-400">Add media</div>
-            </div>
-            <input className="hidden" type="file" accept="image/*,video/*" multiple onChange={(event) => addMixedFiles(event.target.files)} />
-          </label>
+          {canAddMedia ? (
+            <label className="grid aspect-[1.35] cursor-pointer place-items-center rounded-[14px] border border-dashed border-white/15 bg-white/5 text-center transition hover:border-lime-300/40">
+              <div>
+                <ImagePlus className="mx-auto h-6 w-6 text-neutral-500" />
+                <div className="mt-2 text-[12px] font-bold text-neutral-400">Add media</div>
+              </div>
+              <input className="hidden" type="file" accept="image/*,video/*" multiple onChange={(event) => addMixedFiles(event.target.files)} />
+            </label>
+          ) : null}
         </div>
       </section>
     </div>

@@ -63,15 +63,14 @@ export function AppShell() {
   }, [location.pathname, navigate, suspended])
 
   const dealerName = profile.data?.name ?? session?.user.name ?? 'Dealer admin'
-  const activeLocation = profile.data?.locations[0]?.name ?? 'Workspace'
+  const isImmersivePage = location.pathname === routes.chats
 
   return (
     <div className="h-screen overflow-hidden bg-[radial-gradient(110%_75%_at_0%_0%,#1b1b20_0%,#0b0b0d_56%)] text-neutral-100">
       <div className="flex h-full">
         <Sidebar suspended={suspended} />
-        <main className="h-full min-w-0 flex-1 overflow-y-auto">
+        <main className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
           <AppHeader
-            activeLocation={activeLocation}
             dealerName={dealerName}
             theme={theme}
             userMenuOpen={userMenuOpen}
@@ -79,8 +78,22 @@ export function AppShell() {
             onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
             onToggleUserMenu={() => setUserMenuOpen((open) => !open)}
           />
-          <div className="mx-auto w-full max-w-[1200px] p-5 lg:p-7 xl:p-8">
-            <Outlet />
+          <div
+            className={
+              isImmersivePage
+                ? 'min-h-0 flex-1 overflow-hidden'
+                : 'min-h-0 flex-1 overflow-y-auto'
+            }
+          >
+            <div
+              className={
+                isImmersivePage
+                  ? 'mx-auto h-full w-full max-w-[1200px]'
+                  : 'mx-auto w-full max-w-[1200px] p-5 lg:p-7 xl:p-8'
+              }
+            >
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>

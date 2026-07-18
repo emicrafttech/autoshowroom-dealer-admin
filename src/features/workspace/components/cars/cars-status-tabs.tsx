@@ -19,12 +19,12 @@ type CarsStatusTabsProps = {
 
 export function CarsStatusTabs({ tabs, activeValue, onChange, viewMode, onViewModeChange }: CarsStatusTabsProps) {
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-2.5">
+    <div className="mb-5 flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 gap-2.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => (
           <button
             className={cn(
-              'h-11 cursor-pointer rounded-full px-5 text-[13px] font-[900!important] transition',
+              'h-11 shrink-0 cursor-pointer rounded-full px-4 text-[13px] font-[900!important] transition sm:px-5',
               activeValue === tab.value
                 ? 'bg-lime-300 text-neutral-950 shadow-[0_0_24px_rgba(197,244,63,0.22)]'
                 : 'bg-white/8 text-neutral-300 ring-1 ring-white/8 hover:bg-white/12 hover:text-white',
@@ -39,7 +39,7 @@ export function CarsStatusTabs({ tabs, activeValue, onChange, viewMode, onViewMo
       </div>
       <div
         aria-label="Listing view"
-        className="inline-flex h-11 shrink-0 items-center rounded-full bg-white/8 p-1 ring-1 ring-white/8"
+        className="hidden h-11 shrink-0 items-center rounded-full bg-white/8 p-1 ring-1 ring-white/8 md:inline-flex"
         role="group"
       >
         <button

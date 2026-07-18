@@ -2,16 +2,15 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Eye, ExternalLink, LockKeyhole, MailWarning, MapPin, ShieldCheck, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 import { BlurImage } from '@/components/blur-image'
 import { Badge, Button, Dialog, FieldError, Input, Label, Textarea } from '@/components/ui'
-import { AddStandDialog } from '@/features/workspace/components/stands/add-stand-dialog'
 import { DealerPublicPreviewDialog } from '@/features/workspace/components/dealer-public-preview-dialog'
 import { changePasswordSchema, profileSchema } from '@/features/workspace/schemas'
-import type { BillingSummary, DealerLocation, DealerProfile, DealerVerification, DealerVerificationDocument } from '@/features/workspace/types'
+import type { DealerProfile, DealerVerification, DealerVerificationDocument } from '@/features/workspace/types'
 import { api, patch, post } from '@/lib/api'
 import { clearSession, readSession, writeSession, type AuthUser } from '@/lib/auth'
 import { queryClient } from '@/lib/query'
@@ -79,20 +78,17 @@ type DealerSanctionStatus = {
 const requiredDocuments: Array<{ kind: DealerVerificationDocument['kind']; title: string; helper: string }> = [
   { kind: 'cac', title: 'Business registration', helper: 'Upload CAC certificate or business registration document.' },
   { kind: 'identity', title: 'Dealer identity', helper: 'Upload a valid government-issued identity document.' },
-  { kind: 'premises', title: 'Premises proof', helper: 'Upload stand photo, utility bill, tenancy proof, or inspection evidence.' },
+  { kind: 'premises', title: 'Premises proof', helper: 'Upload showroom photo, utility bill, tenancy proof, or inspection evidence.' },
 ]
 
 export function AccountPage() {
   const navigate = useNavigate()
   const logoInputRef = useRef<HTMLInputElement | null>(null)
   const documentInputRef = useRef<HTMLInputElement | null>(null)
-  const standEvidenceInputRef = useRef<HTMLInputElement | null>(null)
   const session = readSession()
   const [logoUploading, setLogoUploading] = useState(false)
   const [documentUploading, setDocumentUploading] = useState<DealerVerificationDocument['kind'] | null>(null)
-  const [, setStandEvidenceUploading] = useState<string | null>(null)
   const [selectedDocumentKind, setSelectedDocumentKind] = useState<DealerVerificationDocument['kind'] | null>(null)
-  const [addStandOpen, setAddStandOpen] = useState(false)
   const [appealOpen, setAppealOpen] = useState(false)
   const [appealReason, setAppealReason] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -101,7 +97,6 @@ export function AccountPage() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const profile = useQuery({ queryKey: ['dealer-profile'], queryFn: () => api<DealerProfile>('/v1/dealers/me') })
   const verification = useQuery({ queryKey: ['dealer-verification'], queryFn: () => api<DealerVerification>('/v1/dealers/me/verification') })
-  const summary = useQuery({ queryKey: ['billing-summary'], queryFn: () => api<BillingSummary>('/v1/billing/summary') })
   const sanctionStatus = useQuery({
     queryKey: ['dealer-sanction-status'],
     queryFn: () => api<DealerSanctionStatus>('/v1/dealers/me/sanction-status'),
@@ -186,48 +181,6 @@ export function AccountPage() {
     setPreviewOpen(true)
   }
 
-  async function uploadStandEvidenceFile(file: File) {
-    if (!file.type.startsWith('image/')) {
-      throw new Error('Choose image files for premises evidence.')
-    }
-    const upload = await post<GenericUploadResponse>('/v1/uploads', {
-      purpose: 'stand_premises',
-      fileName: file.name,
-      contentType: file.type,
-      fileSize: file.size,
-    })
-    const uploadResponse = await fetch(upload.uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': file.type },
-      body: file,
-    })
-    if (!uploadResponse.ok) {
-      throw new Error('Unable to upload premises image. Try again.')
-    }
-    return upload.publicUrl
-  }
-
-  const createStand = useMutation({
-    mutationFn: async (values: { name: string; districtSlug: string; area?: string; address?: string; evidenceFiles: File[] }) => {
-      const evidenceFiles = await Promise.all(values.evidenceFiles.map(uploadStandEvidenceFile))
-      return post<DealerLocation>('/v1/dealers/me/locations', {
-        name: values.name,
-        districtSlug: values.districtSlug,
-        area: values.area,
-        address: values.address,
-        evidenceFiles,
-      })
-    },
-    onSuccess: () => {
-      toast.success('Stand created')
-      setAddStandOpen(false)
-      queryClient.invalidateQueries({ queryKey: ['dealer-profile'] })
-      queryClient.invalidateQueries({ queryKey: ['dealer-locations'] })
-      queryClient.invalidateQueries({ queryKey: ['billing-summary'] })
-    },
-    onError: (error) => toast.error(error.message),
-  })
-
   async function uploadLogo(file: File) {
     if (suspended) {
       toast.error('Verify your email to reactivate your account before making changes.')
@@ -261,29 +214,6 @@ export function AccountPage() {
     } finally {
       setLogoUploading(false)
       if (logoInputRef.current) logoInputRef.current.value = ''
-    }
-  }
-
-  async function uploadStandEvidence(location: DealerLocation, files: File[]) {
-    if (!files.length) return
-    if (suspended) {
-      toast.error('Verify your email to reactivate your account before uploading premises evidence.')
-      return
-    }
-    setStandEvidenceUploading(location.id)
-    try {
-      const uploadedUrls = await Promise.all(files.map(uploadStandEvidenceFile))
-      await patch<DealerLocation>(`/v1/dealers/me/locations/${location.id}`, {
-        evidenceFiles: [...(location.evidenceFiles ?? []), ...uploadedUrls],
-      })
-      toast.success('Premises evidence uploaded for review')
-      queryClient.invalidateQueries({ queryKey: ['dealer-profile'] })
-      queryClient.invalidateQueries({ queryKey: ['dealer-locations'] })
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to upload premises evidence')
-    } finally {
-      setStandEvidenceUploading(null)
-      if (standEvidenceInputRef.current) standEvidenceInputRef.current.value = ''
     }
   }
 
@@ -370,7 +300,7 @@ export function AccountPage() {
           </div>
         </div>
       </Dialog>
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h1 className="font-display text-[34px] font-semibold leading-tight tracking-[-0.035em] text-white">Account</h1>
           <p className="mt-2 text-[14px] font-medium text-neutral-400">Your dealer profile, verification, documents, and data requests, all in one place.</p>
@@ -384,7 +314,7 @@ export function AccountPage() {
             <div className="flex items-start justify-between gap-5">
               <div>
                 <h2 className="font-display text-[20px] font-semibold tracking-[-0.02em] text-white">Dealer profile</h2>
-                <p className="mt-1 text-[13.5px] font-medium text-neutral-500">These details power your public stand page and every lead surface.</p>
+                <p className="mt-1 text-[13.5px] font-medium text-neutral-500">These details power your public showroom page and every lead surface.</p>
               </div>
               <span className="text-[11px] font-bold text-neutral-600">Visible to buyers</span>
             </div>
@@ -582,14 +512,8 @@ export function AccountPage() {
           </section>
 
           <section className="rounded-[18px] border border-white/8 bg-[#101014]/80 p-5 shadow-2xl shadow-black/20">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-[19px] font-semibold text-white">Stands</h2>
-              <span className="text-[12px] font-semibold text-neutral-600">
-                {summary.data
-                  ? `${summary.data.standCount} stand${summary.data.standCount === 1 ? '' : 's'}`
-                  : `${locations.length} location${locations.length === 1 ? '' : 's'}`}
-              </span>
-            </div>
+            <h2 className="font-display text-[19px] font-semibold text-white">Business address</h2>
+            <p className="mt-1 text-[13px] font-medium leading-5 text-neutral-500">Your primary showroom location shown to buyers.</p>
             {primaryLocation ? (
               <div className="mt-4 rounded-2xl border border-white/8 bg-black/25 p-4">
                 <div className="flex items-center gap-3">
@@ -598,18 +522,22 @@ export function AccountPage() {
                   </span>
                   <div className="min-w-0">
                     <div className="truncate text-[14px] font-[900!important] text-white">{primaryLocation.name}</div>
-                    <div className="text-[12px] font-medium text-neutral-500">{primaryLocation.listingCount ?? 0} cars listed</div>
+                    {primaryLocation.address ? (
+                      <div className="text-[12px] font-medium text-neutral-400">{primaryLocation.address}</div>
+                    ) : null}
+                    {primaryLocation.area ? (
+                      <div className="text-[12px] font-medium text-neutral-500">{primaryLocation.area}</div>
+                    ) : null}
                   </div>
-                  {primaryLocation.isPrimary ? <Badge className="ml-auto" tone="lime">Primary</Badge> : null}
                 </div>
                 <div className="mt-4 border-t border-white/8 pt-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-[12px] font-[900!important] text-white">Primary stand premises status</div>
+                      <div className="text-[12px] font-[900!important] text-white">Premises verification</div>
                       <p className="mt-1 text-[12px] font-medium text-neutral-500">
                         {premisesDocument
                           ? 'Premises proof is reviewed separately from KYD documents.'
-                          : 'Upload Premises proof in Verification to cover this main stand.'}
+                          : 'Upload premises proof in Verification to verify your showroom address.'}
                       </p>
                     </div>
                     {premisesDocument ? (
@@ -618,7 +546,7 @@ export function AccountPage() {
                       </Badge>
                     ) : (
                       <Button
-                        disabled={documentUploading === 'premises'}
+                        disabled={documentUploading === 'premises' || suspended}
                         size="sm"
                         type="button"
                         variant="secondary"
@@ -631,34 +559,17 @@ export function AccountPage() {
                       </Button>
                     )}
                   </div>
-                  <input
-                    accept="image/*"
-                    className="hidden"
-                    multiple
-                    ref={standEvidenceInputRef}
-                    type="file"
-                    onChange={(event) => {
-                      const files = Array.from(event.target.files ?? [])
-                      if (files.length) void uploadStandEvidence(primaryLocation, files)
-                    }}
-                  />
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <p className="mt-4 text-[13px] font-medium leading-6 text-neutral-500">Complete dealership setup to add your business address.</p>
+            )}
             {suspended ? (
               <div className="mt-4 rounded-2xl border border-red-300/20 bg-red-400/10 p-4">
                 <div className="text-[13px] font-[900!important] text-red-100">Account suspended</div>
-                <p className="mt-1 text-[12px] font-medium leading-5 text-red-100/75">Verify your email before adding or managing stands.</p>
+                <p className="mt-1 text-[12px] font-medium leading-5 text-red-100/75">Verify your email to reactivate your account.</p>
               </div>
-            ) : (
-              <button
-                className="mt-4 inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[13px] font-[900!important] text-white transition hover:bg-white/10"
-                type="button"
-                onClick={() => setAddStandOpen(true)}
-              >
-                + Add a stand
-              </button>
-            )}
+            ) : null}
           </section>
 
           <section className="rounded-[18px] border border-white/8 bg-[#101014]/80 p-5 shadow-2xl shadow-black/20">
@@ -797,12 +708,6 @@ export function AccountPage() {
           </div>
         </div>
       </Dialog>
-      <AddStandDialog
-        open={addStandOpen}
-        pending={createStand.isPending}
-        onClose={() => setAddStandOpen(false)}
-        onSubmit={(values) => createStand.mutate(values)}
-      />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import {
+  ArrowLeft,
   Calendar,
   Car,
   MessageCircle,
@@ -95,7 +96,7 @@ function EmptyChatState() {
   ];
 
   return (
-    <section className="grid min-h-0 place-items-center px-6 py-10">
+    <section className="grid min-h-0 place-items-center overflow-y-auto px-4 py-8 sm:px-6 sm:py-10">
       <div className="w-full max-w-[640px] text-center">
         <div className="mx-auto grid h-24 w-24 place-items-center rounded-[28px] border border-lime-300/20 bg-lime-300/10 text-lime-300 shadow-2xl shadow-lime-950/20">
           <MessageCircle className="h-10 w-10" />
@@ -155,6 +156,7 @@ function EmptyChatState() {
 export function ChatsPage() {
   const [filter, setFilter] = useState<ChatFilter>("all");
   const [selectedChatId, setSelectedChatId] = useState("");
+  const [mobilePane, setMobilePane] = useState<"inbox" | "thread">("inbox");
   const [liveMessages, setLiveMessages] = useState<ChatMessage[]>([]);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
@@ -317,6 +319,7 @@ export function ChatsPage() {
       );
       if (exists && selectedChatId !== paramConversationId) {
         setSelectedChatId(paramConversationId);
+        setMobilePane("thread");
       }
       return;
     }
@@ -324,6 +327,11 @@ export function ChatsPage() {
       setSelectedChatId(filteredConversations[0].id);
     }
   }, [filteredConversations, selectedChatId, paramConversationId, conversations]);
+
+  function selectChat(chatId: string) {
+    setSelectedChatId(chatId);
+    setMobilePane("thread");
+  }
 
   useEffect(() => {
     setLiveMessages(selectedConversation?.messages ?? []);
@@ -382,16 +390,28 @@ export function ChatsPage() {
     !uploadingAttachment &&
     (draft.trim().length > 0 || pendingAttachment != null);
 
+  const showInbox = hasConversations && mobilePane === "inbox";
+  const showThread = hasConversations && mobilePane === "thread";
+
   return (
     <div
       className={cn(
-        "-m-5 grid h-[calc(100dvh-73px)] min-h-[min(720px,calc(100dvh-73px))] max-h-[calc(100dvh-92px)] grid-rows-1 overflow-hidden lg:-m-7 xl:-m-8",
+        "grid h-full min-h-0 grid-rows-1 overflow-hidden",
         hasConversations
           ? "xl:grid-cols-[330px_minmax(420px,1fr)_300px]"
           : "xl:grid-cols-[330px_minmax(520px,1fr)]",
       )}
     >
-      <aside className="flex min-h-0 flex-col border-r border-white/8 p-4">
+      <aside
+        className={cn(
+          "min-h-0 flex-col border-r border-white/8 p-4",
+          hasConversations
+            ? showInbox
+              ? "flex"
+              : "hidden xl:flex"
+            : "hidden xl:flex",
+        )}
+      >
         <h1 className="font-display text-[24px] font-semibold tracking-[-0.035em] text-white">
           Chats
         </h1>
@@ -404,7 +424,7 @@ export function ChatsPage() {
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           {[
             { label: "All", value: "all", count: conversations.length },
             { label: "Unread", value: "unread", count: unreadCount },
@@ -422,13 +442,14 @@ export function ChatsPage() {
               onClick={() => {
                 setFilter(item.value as ChatFilter);
                 setSelectedChatId("");
+                setMobilePane("inbox");
               }}
             >
               {item.label} {item.count}
             </button>
           ))}
         </div>
-        <section className="mt-4 rounded-2xl border border-white/8 bg-black/20 p-3">
+        <section className="mt-4 shrink-0 rounded-2xl border border-white/8 bg-black/20 p-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-[14px] font-semibold text-white">Admin messages</h2>
             <Badge tone="slate">{adminThreads.data?.length ?? 0}</Badge>
@@ -444,7 +465,7 @@ export function ChatsPage() {
                   <option key={thread.id} value={thread.id}>{thread.subject}</option>
                 ))}
               </select>
-              <div className="max-h-36 space-y-2 overflow-y-auto">
+              <div className="max-h-28 space-y-2 overflow-y-auto xl:max-h-36">
                 {selectedAdminThread.messages.slice(-3).map((message) => (
                   <div className={cn('rounded-xl p-2 text-[12px] font-medium leading-5', message.senderType === 'dealer' ? 'bg-lime-300/10 text-lime-100' : 'bg-white/8 text-neutral-200')} key={message.id}>
                     {message.body}
@@ -473,14 +494,14 @@ export function ChatsPage() {
             <ChatConversationList
               conversations={filteredConversations}
               selectedChatId={selectedConversation?.id ?? ""}
-              onSelectChat={setSelectedChatId}
+              onSelectChat={selectChat}
             />
           ) : (
             <EmptyInboxSkeleton />
           )}
         </div>
         {!hasConversations ? (
-          <p className="px-4 pb-1 text-center text-[12.5px] font-medium leading-5 text-neutral-500">
+          <p className="px-4 pb-1 text-center text-[12.5px] font-medium leading-5 text-neutral-500 xl:block">
             Buyer chats from your listings will appear here, grouped by car.
           </p>
         ) : null}
@@ -489,15 +510,28 @@ export function ChatsPage() {
       {!hasConversations ? <EmptyChatState /> : null}
 
       {hasConversations ? (
-      <section className="flex min-h-0 flex-col overflow-hidden border-r border-white/8">
-        <div className="flex shrink-0 items-center gap-4 border-b border-white/8 px-5 py-4">
-          <div className="flex min-w-0 items-center gap-3">
+      <section
+        className={cn(
+          "min-h-0 flex-col overflow-hidden border-r border-white/8",
+          showThread ? "flex" : "hidden xl:flex",
+        )}
+      >
+        <div className="flex shrink-0 items-center gap-3 border-b border-white/8 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
+          <button
+            aria-label="Back to inbox"
+            className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white/8 text-white transition hover:bg-white/12 xl:hidden"
+            type="button"
+            onClick={() => setMobilePane("inbox")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <BuyerAvatar buyer={selectedConversation?.buyer} />
             <div className="min-w-0">
-              <div className="truncate font-display text-[17px] font-semibold tracking-[-0.02em] text-white">
+              <div className="truncate font-display text-[16px] font-semibold tracking-[-0.02em] text-white sm:text-[17px]">
                 {buyerName(selectedConversation)}
               </div>
-              <div className="mt-0.5 text-[12px] font-semibold text-lime-300">
+              <div className="mt-0.5 truncate text-[12px] font-semibold text-lime-300">
                 Online · enquiring about{" "}
                 {selectedVehicle ? vehicleTitle(selectedVehicle) : "a listing"}
               </div>
@@ -505,7 +539,7 @@ export function ChatsPage() {
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-5">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3 sm:px-5 sm:py-5">
           <ChatMessagePanel
             conversation={selectedConversation}
             messages={liveMessages}
@@ -515,7 +549,7 @@ export function ChatsPage() {
         </div>
 
         <form
-          className="mx-5 mb-4 flex shrink-0 flex-col gap-3 rounded-[16px] border border-white/8 bg-black/25 p-2"
+          className="mx-3 mb-3 flex shrink-0 flex-col gap-3 rounded-[16px] border border-white/8 bg-black/25 p-2 sm:mx-5 sm:mb-4"
           onSubmit={(event) => {
             event.preventDefault();
             if (canSend) sendMessage.mutate();
@@ -547,7 +581,7 @@ export function ChatsPage() {
               </Button>
             </div>
           ) : null}
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
           <input
             accept="image/*"
             className="hidden"
@@ -566,14 +600,14 @@ export function ChatsPage() {
             <Paperclip className="h-4 w-4" />
           </Button>
           <Input
-            className="h-11 border-transparent bg-transparent focus:border-transparent focus:ring-0"
+            className="h-11 min-w-0 border-transparent bg-transparent focus:border-transparent focus:ring-0"
             disabled={!selectedConversation || uploadingAttachment}
             placeholder="Type a reply..."
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
           />
-          <Button className="h-11" disabled={!canSend} type="submit">
-            {uploadingAttachment ? "Uploading..." : "Send"}
+          <Button className="h-11 shrink-0" disabled={!canSend} type="submit">
+            <span className="hidden sm:inline">{uploadingAttachment ? "Uploading..." : "Send"}</span>
             <Send className="h-4 w-4" />
           </Button>
           </div>

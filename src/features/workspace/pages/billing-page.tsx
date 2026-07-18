@@ -87,7 +87,6 @@ const DEALER_CAPABILITIES: Record<string, string> = {
   featured_slots: "Featured slots",
   video_walkarounds: "Video walkarounds",
   performance_analytics: "Performance analytics",
-  multiple_stands: "Multiple stands",
   finance_offers: "Finance offers",
   priority_support: "Priority support",
   verified_badge: "Verified badge",

@@ -95,18 +95,6 @@ export type Vehicle = {
   vin?: string
   chassisNumber?: string
   importType?: string
-  yearOfManufacture?: number | null
-  engineCapacityCc?: number | null
-  registrationPlate?: string
-  registrationState?: string
-  registrationLga?: string
-  customsDutyStatus?: string
-  customsReference?: string
-  customsClearedAt?: string | null
-  bodyHistory?: string
-  papersStatus?: string
-  dutyPaidClaim?: string
-  listingTrust?: string
   locationId?: string
   dealer?: { id: string; slug?: string; name: string; area?: string }
   location?: DealerLocation

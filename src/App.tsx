@@ -10,7 +10,6 @@ import {
   DashboardPage,
   InsightsPage,
   LeadsPage,
-  StandsPage,
   StockPage,
   TeamPage,
 } from '@/features/workspace'
@@ -32,7 +31,6 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="stands" element={<StandsPage />} />
         <Route path="stock" element={<StockPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="bookings" element={<BookingsPage />} />

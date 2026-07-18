@@ -1,11 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
 import { Check, ChevronRight, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge, Button, Label, Textarea } from '@/components/ui'
-import type { DealerLocation, Paginated, Vehicle, VehicleReviewIssue } from '@/features/workspace/types'
+import type { Vehicle, VehicleReviewIssue } from '@/features/workspace/types'
 import { api, patch, post } from '@/lib/api'
-import { unwrapList } from '@/lib/utils'
 import { uploadVehicleMedia } from './add-vehicle/api'
 import { DetailsStep } from './add-vehicle/details-step'
 import { buildVehiclePayload, mediaRequirementError, normalizeCatalogItems, validateDetails, validatePricing } from './add-vehicle/helpers'
@@ -83,21 +81,9 @@ function vehicleToDraftForm(vehicle: Vehicle): VehicleDraftForm {
     colour: vehicle.colour ?? '',
     vin: vehicle.vin ?? '',
     chassisNumber: vehicle.chassisNumber ?? '',
-    yearOfManufacture: vehicle.yearOfManufacture ? String(vehicle.yearOfManufacture) : '',
-    engineCapacityCc: vehicle.engineCapacityCc ? String(vehicle.engineCapacityCc) : '',
-    registrationPlate: vehicle.registrationPlate ?? '',
-    registrationState: vehicle.registrationState ?? '',
-    registrationLga: vehicle.registrationLga ?? '',
-    customsDutyStatus: vehicle.customsDutyStatus ?? defaultVehicleDraftForm.customsDutyStatus,
-    customsReference: vehicle.customsReference ?? '',
-    bodyHistory: vehicle.bodyHistory ?? defaultVehicleDraftForm.bodyHistory,
-    papersStatus: vehicle.papersStatus ?? defaultVehicleDraftForm.papersStatus,
-    dutyPaidClaim: vehicle.dutyPaidClaim ?? defaultVehicleDraftForm.dutyPaidClaim,
-    listingTrust: vehicle.listingTrust ?? '',
     notes: vehicle.notes ?? '',
     priceNgn: String(vehicle.priceNgn ?? ''),
     negotiable: vehicle.negotiable ?? true,
-    locationId: vehicle.locationId ?? '',
   }
 }
 
@@ -113,12 +99,6 @@ export function AddVehicleDialog({ editingVehicle = null, open, onClose, onCompl
   const [makes, setMakes] = useState<string[]>([])
   const [models, setModels] = useState<string[]>([])
   const [trims, setTrims] = useState<string[]>([])
-  const locations = useQuery({
-    enabled: open,
-    queryKey: ['dealer-locations'],
-    queryFn: () => api<Paginated<DealerLocation>>('/v1/dealers/me/locations'),
-  })
-  const stands = useMemo(() => unwrapList(locations.data), [locations.data])
   const isEditing = Boolean(editingVehicle)
   const existingMedia = useMemo(() => editingVehicle?.media ?? [], [editingVehicle?.media])
   const openReviewIssues = useMemo(
@@ -147,12 +127,6 @@ export function AddVehicleDialog({ editingVehicle = null, open, onClose, onCompl
     setIssueResponses({})
     setForm(editingVehicle ? vehicleToDraftForm(editingVehicle) : defaultVehicleDraftForm)
   }, [editingVehicle, open])
-
-  useEffect(() => {
-    if (!open || form.locationId || stands.length === 0) return
-    const defaultStand = stands.find((stand) => stand.isPrimary) ?? stands[0]
-    setForm((current) => ({ ...current, locationId: defaultStand.id }))
-  }, [form.locationId, open, stands])
 
   if (!open) return null
 
@@ -243,14 +217,28 @@ export function AddVehicleDialog({ editingVehicle = null, open, onClose, onCompl
 
   function addFiles(files: FileList | null, kind: 'photo' | 'video') {
     if (!files) return
-    const nextItems = Array.from(files).map((file) => ({
-      id: `${file.name}-${file.size}-${crypto.randomUUID()}`,
-      file,
-      kind,
-      previewUrl: URL.createObjectURL(file),
-    }))
+    const maxCount = kind === 'video' ? 5 : 10
+    const existingCount = existingMedia.filter((item) => item.kind === kind).length
+    const selectedCount = media.filter((item) => item.kind === kind).length
+    const remaining = Math.max(0, maxCount - existingCount - selectedCount)
+    if (remaining <= 0) {
+      setError(`You can upload up to ${maxCount} ${kind === 'video' ? 'videos' : 'images'} per listing.`)
+      return
+    }
+    const nextItems = Array.from(files)
+      .slice(0, remaining)
+      .map((file) => ({
+        id: `${file.name}-${file.size}-${crypto.randomUUID()}`,
+        file,
+        kind,
+        previewUrl: URL.createObjectURL(file),
+      }))
+    if (files.length > remaining) {
+      setError(`Only ${remaining} more ${kind === 'video' ? 'video' : 'image'}${remaining === 1 ? '' : 's'} can be added (max ${maxCount}).`)
+    } else {
+      setError('')
+    }
     setMedia((current) => [...current, ...nextItems])
-    setError('')
   }
 
   function removeMedia(id: string) {
@@ -406,7 +394,6 @@ export function AddVehicleDialog({ editingVehicle = null, open, onClose, onCompl
               photoCount={totalPhotoCount}
               previewTitle={previewTitle}
               price={price}
-              stands={stands}
               videoCount={totalVideoCount}
               onFieldChange={updateField}
             />

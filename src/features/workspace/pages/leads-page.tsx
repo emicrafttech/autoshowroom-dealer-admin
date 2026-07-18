@@ -121,15 +121,25 @@ function LeadVehicleLink({
 }) {
   const label = leadVehicle(lead);
   if (!lead.vehicleId) {
-    return <span className={cn("text-neutral-400", className)}>{label}</span>;
+    return (
+      <span
+        className={cn(
+          "block min-w-0 max-w-full truncate text-neutral-400",
+          className,
+        )}
+        title={label}
+      >
+        {label}
+      </span>
+    );
   }
   return (
     <button
       className={cn(
-        "cursor-pointer appearance-none border-0 bg-transparent p-0 text-left font-medium text-lime-300 transition hover:underline",
+        "block min-w-0 max-w-full cursor-pointer appearance-none overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent p-0 text-left font-medium text-lime-300 transition hover:underline",
         className,
       )}
-      title="View vehicle"
+      title={label}
       type="button"
       onClick={() => onOpen(lead.vehicleId as string)}
     >
@@ -163,7 +173,7 @@ function LeadCard({
   return (
     <article
       className={cn(
-        "rounded-[16px] border border-white/8 bg-[#17171a]/90 p-4 shadow-xl shadow-black/15 ring-1 transition",
+        "min-w-0 overflow-hidden rounded-[16px] border border-white/8 bg-[#17171a]/90 p-3.5 shadow-xl shadow-black/15 ring-1 transition sm:p-4",
         stage.ring,
         isDragging && "opacity-70",
       )}
@@ -174,27 +184,34 @@ function LeadCard({
       {...listeners}
       {...attributes}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/8 text-[12px] font-bold text-white ring-1 ring-white/10">
           {initials(leadName(lead))}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-display text-[15px] font-semibold text-white">
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div
+            className="truncate font-display text-[15px] font-semibold text-white"
+            title={leadName(lead)}
+          >
             {leadName(lead)}
           </div>
           <LeadVehicleLink
-            className="mt-0.5 block truncate text-[12.5px]"
+            className="mt-0.5 text-[12.5px]"
             lead={lead}
             onOpen={onOpenVehicle}
           />
         </div>
       </div>
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <div className="text-[12px] font-bold text-neutral-500">{phone}</div>
-        <div className="text-[11px] font-bold text-neutral-500">{timeAgo(lead.createdAt)}</div>
+      <div className="mt-3 flex min-w-0 items-center justify-between gap-2">
+        <div className="min-w-0 truncate text-[12px] font-bold text-neutral-500" title={phone}>
+          {phone}
+        </div>
+        <div className="shrink-0 text-[11px] font-bold text-neutral-500">
+          {timeAgo(lead.createdAt)}
+        </div>
       </div>
       {lead.followUpAt ? (
-        <div className="mt-2 rounded-lg bg-amber-300/10 px-2 py-1 text-[11px] font-bold text-amber-200">
+        <div className="mt-2 truncate rounded-lg bg-amber-300/10 px-2 py-1 text-[11px] font-bold text-amber-200">
           Follow up {formatDate(lead.followUpAt)}
         </div>
       ) : null}
@@ -226,7 +243,7 @@ function LeadCard({
       </div>
       {(lead.stage ?? "new") !== "sold" ? (
         <button
-          className="mt-3 h-9 w-full cursor-pointer rounded-xl bg-white/8 text-[12px] font-[900!important] text-neutral-300 ring-1 ring-white/10 transition hover:bg-lime-300 hover:text-neutral-950"
+          className="mt-3 h-9 w-full cursor-pointer truncate rounded-xl bg-white/8 px-2 text-[12px] font-[900!important] text-neutral-300 ring-1 ring-white/10 transition hover:bg-lime-300 hover:text-neutral-950"
           type="button"
           onClick={() => onMoveForward(lead)}
           onPointerDown={(event) => event.stopPropagation()}
@@ -254,24 +271,27 @@ function PipelineColumn({
   const { setNodeRef, isOver } = useDroppable({ id: stage.value });
 
   return (
-    <section className="flex min-h-0 flex-col" key={stage.value}>
-      <div className="mb-3 flex items-center gap-2">
-        <span className={cn("h-2.5 w-2.5 rounded-full", stage.dot)} />
-        <h2 className="font-display text-[14px] font-semibold tracking-[-0.02em] text-white">
+    <section
+      className="flex w-[min(300px,85vw)] shrink-0 snap-center flex-col md:h-full md:min-h-0 md:w-auto md:min-w-0"
+      key={stage.value}
+    >
+      <div className="mb-3 flex min-w-0 items-center gap-2">
+        <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", stage.dot)} />
+        <h2 className="min-w-0 truncate font-display text-[14px] font-semibold tracking-[-0.02em] text-white">
           {stage.label}
         </h2>
-        <span className="rounded-md bg-white/8 px-2 py-0.5 text-[11px] font-bold text-neutral-400">
+        <span className="shrink-0 rounded-md bg-white/8 px-2 py-0.5 text-[11px] font-bold text-neutral-400">
           {leads.length}
         </span>
       </div>
       <div
         className={cn(
-          "min-h-0 flex-1 rounded-[18px] border border-dashed border-white/10 bg-transparent p-3 transition",
+          "min-h-[420px] min-w-0 flex-1 overflow-y-auto overscroll-contain rounded-[18px] border border-dashed border-white/10 bg-transparent p-3 transition md:min-h-0",
           isOver && "border-lime-300/40 bg-lime-300/5",
         )}
         ref={setNodeRef}
       >
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           {leads.map((lead) => (
             <LeadCard
               key={lead.id}
@@ -563,57 +583,103 @@ function LeadsListTable({
   onStageChange: (lead: Lead, stage: string) => void;
 }) {
   return (
-    <div className="overflow-visible rounded-[14px] border border-white/8 bg-[#0f0f12]/70">
-      <table className="w-full border-collapse text-left text-[13.5px]">
-        <thead className="bg-white/3 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
-          <tr>
-            <th className="px-5 py-4 font-bold">Buyer</th>
-            <th className="px-5 py-4 font-bold">Vehicle</th>
-            <th className="px-5 py-4 font-bold">Phone</th>
-            <th className="px-5 py-4 font-bold">Stage</th>
-            <th className="px-5 py-4 font-bold">Created</th>
-            <th className="px-5 py-4 font-bold" />
-          </tr>
-        </thead>
-        <tbody>
-          {leads.map((lead) => {
-            const meta = stageMeta(lead.stage);
-            return (
-              <tr className="border-b border-white/8 text-neutral-300 last:border-b-0" key={lead.id}>
-                <td className="px-5 py-4">
-                  <span className="font-medium text-white">{leadName(lead)}</span>
-                </td>
-                <td className="px-5 py-4">
+    <div className="overflow-hidden rounded-[14px] border border-white/8 bg-[#0f0f12]/70">
+      <div className="space-y-3 p-3 md:hidden">
+        {leads.map((lead) => {
+          const meta = stageMeta(lead.stage);
+          return (
+            <article
+              className="min-w-0 overflow-hidden rounded-[16px] border border-white/8 bg-[#17171a]/90 p-4"
+              key={lead.id}
+            >
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div
+                    className="truncate font-display text-[15px] font-semibold text-white"
+                    title={leadName(lead)}
+                  >
+                    {leadName(lead)}
+                  </div>
                   <LeadVehicleLink
+                    className="mt-0.5 text-[12.5px]"
                     lead={lead}
                     onOpen={onOpenVehicle}
                   />
-                </td>
-                <td className="px-5 py-4">
-                  <span className="text-neutral-400">{leadPhone(lead)}</span>
-                </td>
-                <td className="px-5 py-4">
-                  <span className="inline-flex items-center gap-1.5 rounded-md bg-white/8 px-2.5 py-1 text-[11px] font-bold text-white ring-1 ring-white/10">
-                    <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
-                    {meta.label}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  <span className="text-neutral-400">
-                    {formatDate(lead.createdAt)}
-                  </span>
-                </td>
-                <td className="px-5 py-4 text-right">
-                  <LeadActionsMenu
-                    lead={lead}
-                    onStageChange={(stage) => onStageChange(lead, stage)}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                </div>
+                <LeadActionsMenu
+                  lead={lead}
+                  onStageChange={(stage) => onStageChange(lead, stage)}
+                />
+              </div>
+              <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-white/8 px-2.5 py-1 text-[11px] font-bold text-white ring-1 ring-white/10">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                  {meta.label}
+                </span>
+                <span className="min-w-0 truncate text-[12px] font-medium text-neutral-400">
+                  {leadPhone(lead)}
+                </span>
+                <span className="text-[11px] font-bold text-neutral-500">
+                  {formatDate(lead.createdAt)}
+                </span>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[760px] border-collapse text-left text-[13.5px]">
+          <thead className="bg-white/3 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+            <tr>
+              <th className="px-5 py-4 font-bold">Buyer</th>
+              <th className="px-5 py-4 font-bold">Vehicle</th>
+              <th className="px-5 py-4 font-bold">Phone</th>
+              <th className="px-5 py-4 font-bold">Stage</th>
+              <th className="px-5 py-4 font-bold">Created</th>
+              <th className="px-5 py-4 font-bold" />
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((lead) => {
+              const meta = stageMeta(lead.stage);
+              return (
+                <tr className="border-b border-white/8 text-neutral-300 last:border-b-0" key={lead.id}>
+                  <td className="max-w-[180px] px-5 py-4">
+                    <span className="block truncate font-medium text-white" title={leadName(lead)}>
+                      {leadName(lead)}
+                    </span>
+                  </td>
+                  <td className="max-w-[220px] px-5 py-4">
+                    <LeadVehicleLink lead={lead} onOpen={onOpenVehicle} />
+                  </td>
+                  <td className="max-w-[160px] px-5 py-4">
+                    <span className="block truncate text-neutral-400" title={leadPhone(lead)}>
+                      {leadPhone(lead)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-white/8 px-2.5 py-1 text-[11px] font-bold text-white ring-1 ring-white/10">
+                      <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                      {meta.label}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="text-neutral-400">
+                      {formatDate(lead.createdAt)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <LeadActionsMenu
+                      lead={lead}
+                      onStageChange={(stage) => onStageChange(lead, stage)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -728,19 +794,20 @@ export function LeadsPage() {
             {activeLeads.length} active · {needsFirstContact} need first contact
           </p>
         </div>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <Button
+            className="w-full sm:w-auto"
             type="button"
             onClick={() => setAddOpen(true)}
           >
             <Plus className="h-4 w-4" />
             Add a lead
           </Button>
-          <div className="inline-flex rounded-[14px] border border-white/10 bg-[#101014]/80 p-1">
+          <div className="inline-flex w-full rounded-[14px] border border-white/10 bg-[#101014]/80 p-1 sm:w-auto">
             {(["board", "list"] as const).map((option) => (
               <button
                 className={cn(
-                  "h-10 cursor-pointer rounded-xl px-4 text-[13px] font-[900!important] capitalize transition",
+                  "h-10 flex-1 cursor-pointer rounded-xl px-4 text-[13px] font-[900!important] capitalize transition sm:flex-none",
                   view === option
                     ? "bg-lime-300 text-neutral-950"
                     : "text-neutral-400 hover:bg-neutral-500/15 hover:text-white",
@@ -756,9 +823,9 @@ export function LeadsPage() {
         </div>
       </div>
       {view === "board" ? (
-        <div className="relative overflow-x-auto pb-2">
+        <div className="relative pb-2">
           <DndContext onDragEnd={handleDragEnd}>
-            <div className="grid h-[calc(100dvh-260px)] min-h-[610px] min-w-[1120px] grid-cols-5 gap-4">
+            <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:h-[calc(100dvh-260px)] md:min-h-[610px] md:min-w-0 md:snap-none md:grid-cols-5 md:overflow-visible md:pb-0 md:[-ms-overflow-style:auto] md:[scrollbar-width:auto]">
               {stages.map((stage) => (
                 <PipelineColumn
                   key={stage.value}

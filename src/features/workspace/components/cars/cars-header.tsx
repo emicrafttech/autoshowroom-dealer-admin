@@ -49,41 +49,43 @@ export function CarsHeader({
           Plan listings {listingsLabel} · {listingsHelper}
         </p>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative min-w-[280px]">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
+        <div className="relative w-full sm:min-w-[220px] sm:flex-1 xl:max-w-[280px] xl:flex-none">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
           <Input
-            className="h-12 rounded-[14px] pl-11"
+            className="h-12 w-full rounded-[14px] pl-11"
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search..."
             value={search}
           />
         </div>
-        {canBulkUpload ? (
-          <Button className="shrink-0" type="button" variant="secondary" onClick={onBulkUpload}>
-            Bulk upload
-          </Button>
-        ) : (
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:w-auto">
+          {canBulkUpload ? (
+            <Button className="w-full shrink-0 sm:w-auto" type="button" variant="secondary" onClick={onBulkUpload}>
+              Bulk upload
+            </Button>
+          ) : (
+            <Button
+              className="w-full shrink-0 sm:w-auto"
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                window.location.assign('/billing')
+              }}
+            >
+              Upgrade for bulk upload
+            </Button>
+          )}
           <Button
-            className="shrink-0"
+            className="w-full shrink-0 sm:w-auto"
+            disabled={!canPublish}
             type="button"
-            variant="secondary"
-            onClick={() => {
-              window.location.assign('/billing')
-            }}
+            onClick={canPublish ? onAddVehicle : () => window.location.assign('/billing')}
           >
-            Upgrade for bulk upload
+            <Plus className="h-4 w-4" />
+            {canPublish ? 'Add Vehicle' : 'Upgrade to add'}
           </Button>
-        )}
-        <Button
-          className="shrink-0"
-          disabled={!canPublish}
-          type="button"
-          onClick={canPublish ? onAddVehicle : () => window.location.assign('/billing')}
-        >
-          <Plus className="h-4 w-4" />
-          {canPublish ? 'Add Vehicle' : 'Upgrade to add'}
-        </Button>
+        </div>
       </div>
     </div>
   )

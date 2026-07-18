@@ -84,7 +84,7 @@ export function FieldError({ message }: { message?: string }) {
   return <p className="text-xs font-semibold leading-5 text-red-300">{message}</p>
 }
 
-const badgeVariants = cva('inline-flex items-center rounded-lg px-2.5 py-1 font-display text-[11px] font-bold tracking-[-0.01em]', {
+const badgeVariants = cva('inline-flex w-fit max-w-full shrink-0 items-center rounded-full px-2.5 py-1 font-display text-[11px] font-bold tracking-[-0.01em]', {
   variants: {
     tone: {
       lime: 'bg-lime-300/15 text-lime-200 ring-1 ring-lime-300/20',

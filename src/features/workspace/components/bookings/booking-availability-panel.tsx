@@ -147,14 +147,13 @@ export function BookingAvailabilityPanel() {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<BookingAvailability | null>(null)
   const [blockDate, setBlockDate] = useState('')
-  const [selectedLocationId, setSelectedLocationId] = useState('')
 
   const locations = useQuery({
     queryKey: ['dealer-locations'],
     queryFn: () => api<Paginated<DealerLocation>>('/v1/dealers/me/locations'),
   })
-  const stands = unwrapList(locations.data)
-  const activeLocationId = selectedLocationId || stands.find((stand) => stand.isPrimary)?.id || stands[0]?.id || ''
+  const dealerLocations = unwrapList(locations.data)
+  const activeLocationId = dealerLocations.find((location) => location.isPrimary)?.id || dealerLocations[0]?.id || ''
 
   const availability = useQuery({
     enabled: Boolean(activeLocationId),
@@ -250,25 +249,6 @@ export function BookingAvailabilityPanel() {
             Edit
           </button>
         )}
-      </div>
-
-      <div className="mt-4 space-y-2">
-        <Label>Stand</Label>
-        <select
-          className="h-11 w-full cursor-pointer rounded-xl border border-white/10 bg-[#17171a] px-4 text-[13px] font-semibold text-white outline-none focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10"
-          disabled={editing}
-          value={activeLocationId}
-          onChange={(event) => {
-            setDraft(null)
-            setSelectedLocationId(event.target.value)
-          }}
-        >
-          {stands.map((stand) => (
-            <option key={stand.id} value={stand.id}>
-              {stand.name}{stand.isPrimary ? ' · Primary' : ''}
-            </option>
-          ))}
-        </select>
       </div>
 
       <div className="mt-4 space-y-2">

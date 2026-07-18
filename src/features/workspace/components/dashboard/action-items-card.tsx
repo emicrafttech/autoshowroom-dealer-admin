@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { CardTitle } from '@/components/ui'
-import type { Appointment, BillingSummary, DealerProfile, Lead, Vehicle } from '@/features/workspace/types'
+import type { Appointment, DealerProfile, Lead, Vehicle } from '@/features/workspace/types'
 import { routes } from '@/lib/routes'
 import { cn } from '@/lib/utils'
 
@@ -8,7 +8,6 @@ type ActionItemsCardProps = {
   leads: Lead[]
   appointments: Appointment[]
   vehicles: Vehicle[]
-  summary?: BillingSummary
   profile?: DealerProfile
 }
 
@@ -21,7 +20,7 @@ function actionButtonClass(priority: 'primary' | 'secondary') {
   )
 }
 
-export function ActionItemsCard({ leads, appointments, vehicles, summary, profile }: ActionItemsCardProps) {
+export function ActionItemsCard({ leads, appointments, vehicles, profile }: ActionItemsCardProps) {
   const staleVehicles = vehicles.filter((vehicle) => {
     if (!vehicle.updatedAt) return false
     return Date.now() - new Date(vehicle.updatedAt).getTime() > 14 * 86_400_000
@@ -30,7 +29,6 @@ export function ActionItemsCard({ leads, appointments, vehicles, summary, profil
     !profile?.locations.length,
     !profile?.whatsapp,
     profile?.verificationStatus === 'not_submitted',
-    !summary?.canAddStand,
   ].filter(Boolean).length
 
   const items = [

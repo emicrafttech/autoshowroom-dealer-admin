@@ -19,7 +19,6 @@ function initials(name?: string | null) {
 
 type AppHeaderProps = {
   dealerName: string
-  activeLocation: string
   theme: 'dark' | 'light'
   userMenuOpen: boolean
   onToggleTheme: () => void
@@ -29,7 +28,6 @@ type AppHeaderProps = {
 
 export function AppHeader({
   dealerName,
-  activeLocation,
   theme,
   userMenuOpen,
   onToggleTheme,
@@ -134,45 +132,53 @@ export function AppHeader({
               ) : null}
             </Button>
             {notificationsOpen ? (
-              <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-[340px] overflow-hidden rounded-[18px] border border-white/10 bg-[#101014] shadow-2xl shadow-black/30">
-                <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-3">
-                  <div>
-                    <div className="text-[13px] font-[900!important] text-white">Notifications</div>
-                    <div className="text-[11px] font-semibold text-neutral-500">{unreadCount} unread</div>
+              <>
+                <button
+                  aria-label="Close notifications"
+                  className="fixed inset-0 z-40 cursor-default bg-black/40 sm:hidden"
+                  type="button"
+                  onClick={() => setNotificationsOpen(false)}
+                />
+                <div className="fixed inset-x-3 top-[72px] z-50 max-h-[min(70dvh,480px)] overflow-hidden rounded-[18px] border border-white/10 bg-[#101014] shadow-2xl shadow-black/40 sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-[340px] sm:max-h-[380px]">
+                  <div className="flex items-start justify-between gap-3 border-b border-white/8 px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-[900!important] text-white">Notifications</div>
+                      <div className="text-[11px] font-semibold text-neutral-500">{unreadCount} unread</div>
+                    </div>
+                    <button
+                      className="shrink-0 cursor-pointer whitespace-nowrap text-[12px] font-[900!important] text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!unreadCount || markAllRead.isPending}
+                      type="button"
+                      onClick={() => markAllRead.mutate()}
+                    >
+                      Mark all read
+                    </button>
                   </div>
-                  <button
-                    className="cursor-pointer text-[12px] font-[900!important] text-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!unreadCount || markAllRead.isPending}
-                    type="button"
-                    onClick={() => markAllRead.mutate()}
-                  >
-                    Mark all read
-                  </button>
+                  <div className="max-h-[min(calc(70dvh-64px),416px)] overflow-y-auto overscroll-contain p-2 sm:max-h-[316px]">
+                    {notificationItems.length ? (
+                      notificationItems.slice(0, 8).map((notification) => (
+                        <button
+                          className="w-full cursor-pointer rounded-2xl px-3 py-3 text-left transition hover:bg-white/8"
+                          key={notification.id}
+                          type="button"
+                          onClick={() => openNotification(notification)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.readAt ? 'bg-neutral-700' : 'bg-lime-300'}`} />
+                            <span className="min-w-0">
+                              <span className="block truncate text-[13.5px] font-[900!important] text-white">{notification.title}</span>
+                              <span className="mt-1 line-clamp-2 block text-[12.5px] font-medium leading-5 text-neutral-400">{notification.body}</span>
+                              <span className="mt-2 block text-[11px] font-bold text-neutral-600">{formatRelativeDate(notification.createdAt)}</span>
+                            </span>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-8 text-center text-[13px] font-semibold text-neutral-500">No notifications yet.</div>
+                    )}
+                  </div>
                 </div>
-                <div className="max-h-[380px] overflow-y-auto p-2">
-                  {notificationItems.length ? (
-                    notificationItems.slice(0, 8).map((notification) => (
-                      <button
-                        className="w-full cursor-pointer rounded-2xl px-3 py-3 text-left transition hover:bg-white/8"
-                        key={notification.id}
-                        type="button"
-                        onClick={() => openNotification(notification)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.readAt ? 'bg-neutral-700' : 'bg-lime-300'}`} />
-                          <span className="min-w-0">
-                            <span className="block truncate text-[13.5px] font-[900!important] text-white">{notification.title}</span>
-                            <span className="mt-1 line-clamp-2 block text-[12.5px] font-medium leading-5 text-neutral-400">{notification.body}</span>
-                            <span className="mt-2 block text-[11px] font-bold text-neutral-600">{formatRelativeDate(notification.createdAt)}</span>
-                          </span>
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-8 text-center text-[13px] font-semibold text-neutral-500">No notifications yet.</div>
-                  )}
-                </div>
-              </div>
+              </>
             ) : null}
           </div>
           <Button
@@ -196,7 +202,7 @@ export function AppHeader({
               <div className="hidden min-w-0 sm:block">
                 <div className="max-w-[180px] truncate font-display text-[15px] font-semibold tracking-[-0.02em] text-white">{dealerName}</div>
                 <div className="max-w-[180px] truncate text-[12px] font-medium capitalize text-neutral-500">
-                  {session?.user.role} · {activeLocation}
+                  {session?.user.role}
                 </div>
               </div>
               <ChevronsUpDown className="text-neutral-500" size={17} />

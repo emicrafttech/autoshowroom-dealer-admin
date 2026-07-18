@@ -177,7 +177,7 @@ function PreviewFrame({ dealer }: { dealer: DealerPublicPreview }) {
           <p className="px-4 py-8 text-center text-[13px] font-semibold text-neutral-500">
             {dealer.slug
               ? 'No live listings right now.'
-              : 'Your stand link is not ready yet.'}
+              : 'Your public page link is not ready yet.'}
           </p>
         )}
       </div>
@@ -198,7 +198,7 @@ export function DealerPublicPreviewDialog({
     <Dialog
       open={open}
       panelClassName="max-w-[440px]"
-      title="Public stand preview"
+      title="Public showroom preview"
       onClose={onClose}
     >
       <div className="space-y-4">

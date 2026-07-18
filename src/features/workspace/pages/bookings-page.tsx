@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Car, ChevronLeft, ChevronRight, Clock, MessageCircle, MoreHorizontal, Phone, Plus, X } from 'lucide-react'
+import { Calendar, Car, Clock, MessageCircle, MoreHorizontal, Phone, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Button, Dialog, Input, Label, Textarea } from '@/components/ui'
 import { isPendingConfirmation, useDealerAppointments } from '@/features/workspace/components/bookings/use-dealer-appointments'
@@ -31,7 +31,6 @@ function serviceFromAppointment(appointment: Appointment): ServiceMeta {
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 function startOfDay(date: Date) {
   const d = new Date(date)
@@ -96,74 +95,6 @@ function toLocalInputValue(value?: string) {
   const date = value ? new Date(value) : new Date(Date.now() + 24 * 60 * 60 * 1000)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-function MiniCalendar({ appointments, selectedDate, onSelect }: { appointments: Appointment[]; selectedDate: Date; onSelect: (date: Date) => void }) {
-  const [viewMonth, setViewMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1))
-
-  const daysWithBookings = useMemo(() => {
-    const set = new Set<string>()
-    for (const a of appointments) {
-      if (!a.scheduledAt) continue
-      const d = startOfDay(new Date(a.scheduledAt))
-      set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`)
-    }
-    return set
-  }, [appointments])
-
-  const grid = useMemo(() => {
-    const first = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1)
-    const startOffset = (first.getDay() + 6) % 7
-    const gridStart = new Date(first)
-    gridStart.setDate(first.getDate() - startOffset)
-    return Array.from({ length: 42 }, (_, i) => {
-      const d = new Date(gridStart)
-      d.setDate(gridStart.getDate() + i)
-      return d
-    })
-  }, [viewMonth])
-
-  return (
-    <div className="rounded-[18px] border border-white/8 bg-[#101014]/80 p-4 shadow-2xl shadow-black/20">
-      <div className="flex items-center justify-between">
-        <div className="font-display text-[14px] font-bold text-white">{MONTHS[viewMonth.getMonth()]} {viewMonth.getFullYear()}</div>
-        <div className="flex items-center gap-1">
-          <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg text-neutral-400 transition hover:bg-white/8 hover:text-white" type="button" onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg text-neutral-400 transition hover:bg-white/8 hover:text-white" type="button" onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wider text-neutral-600">
-        {WEEKDAYS.map((day) => <div key={day}>{day[0]}</div>)}
-      </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {grid.map((day, index) => {
-          const inMonth = day.getMonth() === viewMonth.getMonth()
-          const today = isSameDay(day, new Date())
-          const selected = isSameDay(day, selectedDate)
-          const hasBookings = daysWithBookings.has(`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`)
-          return (
-            <button
-              className={cn(
-                'relative grid h-8 cursor-pointer place-items-center rounded-lg text-[12px] font-bold transition',
-                inMonth ? 'text-neutral-300' : 'text-neutral-700',
-                selected ? 'bg-lime-300 text-neutral-950' : today ? 'ring-1 ring-lime-300/40 text-white' : 'hover:bg-white/8',
-              )}
-              key={index}
-              type="button"
-              onClick={() => onSelect(startOfDay(day))}
-            >
-              {day.getDate()}
-              {hasBookings && !selected ? <span className="absolute bottom-1 h-1 w-1 rounded-full bg-lime-300" /> : null}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
 }
 
 function BookingCard({
@@ -324,7 +255,6 @@ function NewBookingDialog({ open, onClose, vehicles }: { open: boolean; onClose:
   const [vehicleId, setVehicleId] = useState('')
   const [scheduledAt, setScheduledAt] = useState(toLocalInputValue())
   const [notes, setNotes] = useState('')
-  const vehicle = vehicles.find((v) => v.id === vehicleId)
   const title = buyerName ? `Inspection for ${buyerName}` : 'Inspection booking'
 
   const create = useMutation({
@@ -333,7 +263,6 @@ function NewBookingDialog({ open, onClose, vehicles }: { open: boolean; onClose:
         title,
         scheduledAt: new Date(scheduledAt).toISOString(),
         vehicleId: vehicleId || undefined,
-        locationId: vehicle?.locationId || undefined,
         notes: [buyerPhone ? `Buyer phone: ${buyerPhone}` : null, notes || null].filter(Boolean).join('\n') || undefined,
       }),
     onSuccess: () => {
@@ -540,20 +469,20 @@ export function BookingsPage() {
   const dayFiltered = view === 'calendar' ? all.filter((a) => a.scheduledAt && isSameDay(new Date(a.scheduledAt), selectedDate)) : []
 
   return (
-    <div className="-m-5 flex h-[calc(100dvh-73px)] max-h-[calc(100dvh-92px)] min-h-0 flex-col overflow-hidden lg:-m-7 xl:-m-8">
-      <div className="flex shrink-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="font-display text-[34px] font-semibold leading-tight tracking-[-0.035em] text-white">Bookings</h1>
           <p className="mt-2 text-[14px] font-semibold text-neutral-400">
             {formatLongDate(new Date())} · {stats.todayCount} today, {stats.week} this week
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="inline-flex rounded-[14px] border border-white/10 bg-[#101014]/80 p-1">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <div className="inline-flex w-full rounded-[14px] border border-white/10 bg-[#101014]/80 p-1 sm:w-auto">
             {(['agenda', 'calendar'] as const).map((item) => (
               <button
                 className={cn(
-                  'h-10 cursor-pointer rounded-xl px-4 text-[13px] font-[900!important] capitalize transition',
+                  'h-10 flex-1 cursor-pointer rounded-xl px-4 text-[13px] font-[900!important] capitalize transition sm:flex-none',
                   view === item ? 'bg-white/8 text-white ring-1 ring-lime-300/30' : 'text-neutral-400 hover:text-white',
                 )}
                 key={item}
@@ -564,23 +493,22 @@ export function BookingsPage() {
               </button>
             ))}
           </div>
-          <Button type="button" onClick={() => setNewOpen(true)}>
+          <Button className="w-full sm:w-auto" type="button" onClick={() => setNewOpen(true)}>
             <Plus className="h-4 w-4" />
             New booking
           </Button>
         </div>
       </div>
 
-      <div className="mt-5 grid shrink-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Today" value={stats.todayCount} tone="lime" />
         <StatCard label="Pending confirm" value={stats.pending} note={stats.pending ? 'needs reply' : undefined} tone="amber" />
         <StatCard label="This week" value={stats.week} tone="blue" />
         <StatCard label="Completed · 30D" value={stats.completed30} tone="slate" />
       </div>
 
-      <div className="mt-5 grid min-h-0 flex-1 grid-rows-1 gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="min-h-0 overflow-y-auto overscroll-contain pr-1">
-          <div className="space-y-5 pb-2">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_320px]">
+        <div className="min-w-0 space-y-5">
           {view === 'agenda' ? (
             grouped.length ? (
               grouped.map((group) => (
@@ -604,7 +532,7 @@ export function BookingsPage() {
                 </section>
               ))
             ) : (
-              <div className="grid min-h-[420px] place-items-center rounded-[22px] border border-white/8 bg-[#101014]/60 p-8 text-center">
+              <div className="grid min-h-[320px] place-items-center rounded-[22px] border border-white/8 bg-[#101014]/60 p-8 text-center sm:min-h-[420px]">
                 <div className="max-w-md">
                   <div className="mx-auto grid h-24 w-24 place-items-center rounded-[28px] border border-lime-300/20 bg-lime-300/10 text-lime-300 shadow-2xl shadow-lime-950/20">
                     <Calendar className="h-10 w-10" />
@@ -645,11 +573,9 @@ export function BookingsPage() {
               </section>
             </div>
           )}
-          </div>
         </div>
 
-        <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain pr-1 pb-2">
-          <MiniCalendar appointments={all} selectedDate={selectedDate} onSelect={setSelectedDate} />
+        <aside className="flex min-w-0 flex-col gap-4 pb-2">
           <section className="rounded-[18px] border border-lime-300/25 bg-lime-300/6 p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-[15px] font-bold text-white">Up next</h2>

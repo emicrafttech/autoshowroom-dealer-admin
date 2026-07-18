@@ -1,7 +1,15 @@
 import type { Vehicle } from '@/features/workspace/types'
 
+function isMeaningfulTrim(trim?: string | null) {
+  const value = trim?.trim()
+  if (!value) return false
+  return value.toLowerCase() !== 'not specified'
+}
+
 export function vehicleTitle(vehicle: Vehicle) {
-  return [vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(' ')
+  return [vehicle.make, vehicle.model, isMeaningfulTrim(vehicle.trim) ? vehicle.trim : null]
+    .filter(Boolean)
+    .join(' ')
 }
 
 export function vehicleImageUrl(vehicle: Vehicle) {

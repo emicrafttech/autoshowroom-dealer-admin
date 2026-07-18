@@ -1,21 +1,18 @@
 import { Label } from '@/components/ui'
-import type { DealerLocation } from '@/features/workspace/types'
 import { formatCompactNgn } from '@/lib/utils'
 import { decimalNumberValue, formatDecimalNumberInput } from './helpers'
-import { SelectField } from './select-field'
 import type { UpdateVehicleField, VehicleDraftForm } from './types'
 
 type PublishStepProps = {
   form: VehicleDraftForm
   photoCount: number
   videoCount: number
-  stands: DealerLocation[]
   price: number
   previewTitle: string
   onFieldChange: UpdateVehicleField
 }
 
-export function PublishStep({ form, photoCount, videoCount, stands, price, previewTitle, onFieldChange }: PublishStepProps) {
+export function PublishStep({ form, photoCount, videoCount, price, previewTitle, onFieldChange }: PublishStepProps) {
   return (
     <div className="space-y-6">
       <section>
@@ -65,17 +62,6 @@ export function PublishStep({ form, photoCount, videoCount, stands, price, previ
             </button>
           ))}
         </div>
-      </section>
-      <section className="grid gap-3 sm:grid-cols-2">
-        <SelectField
-          label="Stand"
-          options={stands.map((stand) => ({
-            label: stand.name,
-            value: stand.id,
-          }))}
-          value={form.locationId}
-          onChange={(value) => onFieldChange('locationId', value)}
-        />
       </section>
       <div className="rounded-[16px] border border-lime-300/25 bg-lime-300/10 p-4">
         <div className="flex items-center justify-between gap-4">

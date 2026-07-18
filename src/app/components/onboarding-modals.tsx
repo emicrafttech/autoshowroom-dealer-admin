@@ -61,7 +61,7 @@ export function OnboardingModals({
     values: {
       dealerName: profile?.name === 'New Dealer' ? '' : profile?.name ?? '',
       email: session?.user.email.endsWith('@pending.autoshowroom.local') ? '' : session?.user.email ?? '',
-      standName: profile?.locations[0]?.name ?? 'Main Stand',
+      standName: profile?.locations[0]?.name ?? 'Main Showroom',
       districtSlug: profile?.locations[0]?.districtSlug ?? '',
       address: profile?.locations[0]?.address ?? '',
     },
@@ -131,13 +131,13 @@ export function OnboardingModals({
           </section>
           <section className="space-y-3 rounded-[14px] border border-white/8 bg-white/[0.03] p-4">
             <div>
-              <h3 className="font-display text-[15px] font-bold text-white">Initial stand</h3>
-              <p className="mt-1 text-xs text-neutral-500">Premise details for the first car stand.</p>
+              <h3 className="font-display text-[15px] font-bold text-white">Business address</h3>
+              <p className="mt-1 text-xs text-neutral-500">Showroom location buyers will visit for inspections.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2.5">
-                <Label htmlFor="standName">Stand name</Label>
-                <Input id="standName" placeholder="Main Stand" {...setupForm.register('standName')} />
+                <Label htmlFor="standName">Showroom name</Label>
+                <Input id="standName" placeholder="Main Showroom" {...setupForm.register('standName')} />
                 <FieldError message={setupForm.formState.errors.standName?.message} />
               </div>
               <div className="space-y-2.5">

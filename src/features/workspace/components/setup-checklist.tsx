@@ -1,12 +1,11 @@
 import { Badge, Card, CardDescription, CardHeader, CardTitle } from '@/components/ui'
-import type { BillingSummary, DealerProfile } from '@/features/workspace/types'
+import type { DealerProfile } from '@/features/workspace/types'
 
-export function SetupChecklist({ summary, profile }: { summary?: BillingSummary; profile?: DealerProfile }) {
+export function SetupChecklist({ profile }: { profile?: DealerProfile }) {
   const items = [
-    { label: 'Add your first stand', done: Boolean(profile?.locations.length), helper: 'Required before publishing inventory.' },
+    { label: 'Confirm business address', done: Boolean(profile?.locations.length), helper: 'Required before publishing inventory.' },
     { label: 'Complete WhatsApp/profile details', done: Boolean(profile?.whatsapp), helper: 'Required before lead/contact surfaces are enabled.' },
     { label: 'Submit dealer verification', done: profile?.verificationStatus !== 'not_submitted', helper: 'Required for compliance-sensitive actions.' },
-    { label: 'Stay within stand limit', done: Boolean(summary?.canAddStand), helper: `${summary?.standCount ?? 0}/${summary?.standLimit ?? 1} stands used.` },
   ]
 
   return (

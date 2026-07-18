@@ -1,5 +1,4 @@
 export { DashboardPage } from '@/features/workspace/pages/dashboard-page'
-export { StandsPage } from '@/features/workspace/pages/stands-page'
 export { StockPage } from '@/features/workspace/pages/cars-page'
 export { LeadsPage } from '@/features/workspace/pages/leads-page'
 export { BookingsPage } from '@/features/workspace/pages/bookings-page'

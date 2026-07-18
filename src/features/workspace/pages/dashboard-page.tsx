@@ -10,7 +10,6 @@ import { routes } from '@/lib/routes'
 import { unwrapList } from '@/lib/utils'
 
 const quickActions = [
-  { label: 'Add stand', to: routes.stands },
   { label: 'Create listing', to: routes.stock },
   { label: 'Review leads', to: routes.leads },
   { label: 'Open billing', to: routes.billing },
@@ -25,10 +24,9 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard" description="Operational snapshot for stock, stands, leads, bookings, and setup readiness." />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <PageHeader title="Dashboard" description="Operational snapshot for stock, leads, bookings, and setup readiness." />
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <StatCard label="Active listings" value={summary.data?.activeListings ?? <Skeleton className="h-9 w-20" />} helper={`${summary.data?.listingLimit ?? 0} listing limit`} />
-        <StatCard label="Stands" value={`${summary.data?.standCount ?? 0}/${summary.data?.standLimit ?? 1}`} helper={summary.data?.canAddStand ? 'More stands available' : 'Upgrade required for another stand'} />
         <StatCard label="New leads" value={unwrapList(leads.data).length} helper="From active stock and contact surfaces" />
         <StatCard label="Appointments" value={unwrapList(appointments.data).length} helper="Upcoming inspections and visits" />
       </div>
@@ -39,7 +37,7 @@ export function DashboardPage() {
             <CardDescription>Common dealer workflows are one click from the dashboard.</CardDescription>
           </div>
         </CardHeader>
-        <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
           {quickActions.map((action) => (
             <Link
               className="inline-flex h-12 cursor-pointer items-center justify-center rounded-xl bg-white/8 px-5 text-[15px] font-[900!important] text-neutral-100 ring-1 ring-white/10 transition hover:bg-white/12"
@@ -55,7 +53,6 @@ export function DashboardPage() {
         appointments={unwrapList(appointments.data)}
         leads={unwrapList(leads.data)}
         profile={profile.data}
-        summary={summary.data}
         vehicles={unwrapList(vehicles.data)}
       />
     </>

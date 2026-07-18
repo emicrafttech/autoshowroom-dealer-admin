@@ -55,16 +55,16 @@ export function ChatMessagePanel({ conversation, messages, selectedChatId, onQui
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {vehicle ? (
-        <div className="mb-5 flex shrink-0 justify-center">
-          <div className="flex items-center gap-3 rounded-[16px] border border-white/8 bg-white/6 px-4 py-3">
-            <div className="h-11 w-16 overflow-hidden rounded-lg bg-black/40">
+        <div className="mb-3 flex shrink-0 justify-center sm:mb-5">
+          <div className="flex w-full max-w-full items-center gap-3 rounded-[16px] border border-white/8 bg-white/6 px-3 py-2.5 sm:w-auto sm:px-4 sm:py-3">
+            <div className="h-11 w-16 shrink-0 overflow-hidden rounded-lg bg-black/40">
               {vehicleImageUrl(vehicle) ? <BlurImage alt={vehicleTitle(vehicle)} className="h-full w-full object-cover" src={vehicleImageUrl(vehicle)} /> : null}
             </div>
-            <div>
-              <div className="text-[13px] font-[900!important] text-white">{vehicleTitle(vehicle)}</div>
-              <div className="mt-0.5 text-[11px] font-semibold text-neutral-500">{vehicle.year} · {vehicle.mileageKm?.toLocaleString() ?? 'Mileage not set'} km</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-[900!important] text-white">{vehicleTitle(vehicle)}</div>
+              <div className="mt-0.5 truncate text-[11px] font-semibold text-neutral-500">{vehicle.year} · {vehicle.mileageKm?.toLocaleString() ?? 'Mileage not set'} km</div>
             </div>
-            <div className="font-display text-[15px] font-semibold text-lime-300">{formatCompactNgn(vehicle.priceNgn)}</div>
+            <div className="shrink-0 font-display text-[14px] font-semibold text-lime-300 sm:text-[15px]">{formatCompactNgn(vehicle.priceNgn)}</div>
           </div>
         </div>
       ) : null}
@@ -94,16 +94,16 @@ export function ChatMessagePanel({ conversation, messages, selectedChatId, onQui
       </div>
 
       {selectedChatId ? (
-        <div className="mt-4 flex shrink-0 flex-wrap gap-2">
-          <button className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white/8 px-3 py-2 text-[12px] font-[900!important] text-neutral-300 transition hover:bg-white/12" type="button" onClick={() => onQuickReply('I can send a full walkaround video for this car.')}>
+        <div className="mt-3 flex shrink-0 gap-2 overflow-x-auto pb-1 sm:mt-4 sm:flex-wrap sm:overflow-visible sm:pb-0">
+          <button className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white/8 px-3 py-2 text-[12px] font-[900!important] text-neutral-300 transition hover:bg-white/12" type="button" onClick={() => onQuickReply('I can send a full walkaround video for this car.')}>
             <Image className="h-3.5 w-3.5" />
             Send walkaround
           </button>
-          <button className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white/8 px-3 py-2 text-[12px] font-[900!important] text-neutral-300 transition hover:bg-white/12" type="button" onClick={() => onQuickReply('The listed price is still available. Would you like to make an offer?')}>
+          <button className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white/8 px-3 py-2 text-[12px] font-[900!important] text-neutral-300 transition hover:bg-white/12" type="button" onClick={() => onQuickReply('The listed price is still available. Would you like to make an offer?')}>
             <Tag className="h-3.5 w-3.5" />
             Share price
           </button>
-          <button className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white/8 px-3 py-2 text-[12px] font-[900!important] text-neutral-300 transition hover:bg-white/12" type="button" onClick={() => onQuickReply('I can schedule an inspection time for you. What day works best?')}>
+          <button className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-white/8 px-3 py-2 text-[12px] font-[900!important] text-neutral-300 transition hover:bg-white/12" type="button" onClick={() => onQuickReply('I can schedule an inspection time for you. What day works best?')}>
             <Calendar className="h-3.5 w-3.5" />
             Propose a time
           </button>
