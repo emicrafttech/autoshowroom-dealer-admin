@@ -205,6 +205,33 @@ export type Appointment = {
   updatedAt?: string
 }
 
+export type BillingInterval = 'monthly' | 'yearly'
+
+export type CheckoutInitPayload = {
+  planId: string
+  billingInterval?: BillingInterval
+}
+
+export type CheckoutInitResponse = {
+  planId: string
+  reference: string
+  fullyCovered: boolean
+  billingInterval?: BillingInterval
+  publicKey?: string
+  email?: string
+  amountNgn?: number
+  amountKobo?: number
+  listPriceNgn?: number
+  creditAppliedNgn?: number
+  checkoutKind?: string
+  foundingTrial?: boolean
+  trialDays?: number
+  vatNgn?: number
+  amountExVatNgn?: number
+  currency?: string
+  metadata?: Record<string, unknown>
+}
+
 export type Plan = {
   id: string
   name: string

@@ -1,10 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, CreditCard, Download, Layers, ShieldCheck } from "lucide-react";
+import { CreditCard, Download } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge, Button, Dialog } from "@/components/ui";
+import { BillingIntervalToggle } from "@/features/workspace/billing/billing-interval-toggle";
+import { checkoutRequest } from "@/features/workspace/billing/checkout-request";
+import {
+  FOUNDING_OFFER_HEADLINE,
+  VAT_INCLUSIVE_COPY,
+  foundingOfferBannerCopy,
+} from "@/features/workspace/billing/plan-dialog-copy";
+import { PlanComparisonCard } from "@/features/workspace/billing/plan-comparison-card";
+import {
+  type BillingInterval,
+  planPriceForInterval,
+  priceSuffix,
+} from "@/features/workspace/billing/plan-pricing";
 import type {
   BillingSummary,
+  CheckoutInitResponse,
   Invoice,
   Paginated,
   Plan,
@@ -12,21 +26,6 @@ import type {
 import { api, apiBlob, post } from "@/lib/api";
 import { startPaystackCheckout } from "@/lib/paystack-checkout";
 import { cn, formatDate, formatNgn, unwrapList } from "@/lib/utils";
-
-type CheckoutInitResponse = {
-  planId: string;
-  reference: string;
-  fullyCovered: boolean;
-  publicKey?: string;
-  email?: string;
-  amountNgn?: number;
-  amountKobo?: number;
-  listPriceNgn?: number;
-  creditAppliedNgn?: number;
-  checkoutKind?: string;
-  currency?: string;
-  metadata?: Record<string, unknown>;
-};
 
 type DowngradeResponse = {
   planId: string;
@@ -57,22 +56,6 @@ type PaymentMethodCompleteResponse = {
   };
 };
 
-function periodIsActive(periodEnd?: string) {
-  return Boolean(periodEnd && new Date(periodEnd) > new Date());
-}
-
-function quotedUpgradeAmount(plan: Plan, currentPlan?: Plan, periodEnd?: string) {
-  const currentPrice = currentPlan?.priceNgn ?? 0;
-  if (
-    plan.priceNgn > currentPrice &&
-    periodIsActive(periodEnd) &&
-    currentPrice > 0
-  ) {
-    return Math.max(0, plan.priceNgn - currentPrice);
-  }
-  return plan.priceNgn;
-}
-
 function usagePercent(used?: number, limit?: number | null) {
   if (limit == null || !limit) return 0;
   return Math.min(100, Math.round(((used ?? 0) / limit) * 100));
@@ -83,24 +66,10 @@ function limitLabel(used?: number, limit?: number | null) {
   return `${used ?? 0}/${limit}`;
 }
 
-const DEALER_CAPABILITIES: Record<string, string> = {
-  featured_slots: "Featured slots",
-  video_walkarounds: "Video walkarounds",
-  performance_analytics: "Performance analytics",
-  finance_offers: "Finance offers",
-  priority_support: "Priority support",
-  verified_badge: "Verified badge",
-  inventory_api: "Inventory API",
-};
-
-function planFeatureLabel(feature: string) {
-  return DEALER_CAPABILITIES[feature] ?? feature;
-}
-
 function formatCardBrand(brand: string) {
-  const normalized = brand.trim().toLowerCase()
-  if (!normalized) return 'Card'
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+  const normalized = brand.trim().toLowerCase();
+  if (!normalized) return "Card";
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function invoiceDownloadName(invoice: Invoice, index: number) {
@@ -155,132 +124,10 @@ function StatUsageCard({
   );
 }
 
-function PlanCard({
-  plan,
-  current,
-  pendingDowngrade,
-  currentPlan,
-  periodEnd,
-  actionPending,
-  onUpgrade,
-  onDowngrade,
-}: {
-  plan: Plan;
-  current: boolean;
-  pendingDowngrade?: boolean;
-  currentPlan?: Plan;
-  periodEnd?: string;
-  actionPending: boolean;
-  onUpgrade: (planId: string) => void;
-  onDowngrade: (planId: string) => void;
-}) {
-  const currentPrice = currentPlan?.priceNgn ?? 0;
-  const isUpgrade = plan.priceNgn > currentPrice;
-  const isDowngrade = plan.priceNgn < currentPrice;
-  const dueToday = quotedUpgradeAmount(plan, currentPlan, periodEnd);
-  const isProrated = isUpgrade && dueToday < plan.priceNgn && dueToday > 0;
-
-  return (
-    <div
-      className={cn(
-        "flex h-full flex-col rounded-[20px] border p-5 shadow-2xl shadow-black/20",
-        current
-          ? "border-lime-300/30 bg-lime-300/10"
-          : "border-white/8 bg-[#101014]/80",
-      )}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-lime-300/15 text-lime-200">
-          <Layers className="h-5 w-5" />
-        </div>
-        {current ? (
-          <Badge tone="lime">Current</Badge>
-        ) : pendingDowngrade ? (
-          <Badge tone="amber">Scheduled</Badge>
-        ) : null}
-      </div>
-      <h2 className="mt-4 font-display text-[20px] font-semibold text-white">
-        {plan.name}
-      </h2>
-      <div className="mt-2 font-display text-[30px] font-semibold text-white">
-        {formatNgn(plan.priceNgn)}
-        <span className="text-[13px] text-neutral-400">/mo</span>
-      </div>
-      {isUpgrade && !current ? (
-        <p className="mt-2 text-[12px] font-semibold text-lime-200">
-          {isProrated
-            ? `Pay ${formatNgn(dueToday)} today · current plan credit applied`
-            : `Pay ${formatNgn(dueToday)} today`}
-        </p>
-      ) : null}
-      {isDowngrade && !current ? (
-        <p className="mt-2 text-[12px] font-semibold text-amber-200">
-          Takes effect at your next billing cycle
-        </p>
-      ) : null}
-      <div className="mt-4 flex flex-1 flex-col gap-2 text-[13px] font-semibold text-neutral-400">
-        <div className="flex items-center gap-2">
-          <Check className="h-4 w-4 shrink-0 text-lime-300" />{" "}
-          {plan.listingLimit == null
-            ? "Unlimited live listings"
-            : `${plan.listingLimit} live listings`}
-        </div>
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 shrink-0 text-lime-300" />{" "}
-          {plan.staffLimit == null
-            ? "Unlimited staff seats"
-            : `${plan.staffLimit} staff seats`}
-        </div>
-        {(plan.featuredSlotsPerMonth ?? 0) > 0 ? (
-          <div className="flex items-center gap-2">
-            <Check className="h-4 w-4 shrink-0 text-lime-300" />{" "}
-            {plan.featuredSlotsPerMonth} featured placements / month
-          </div>
-        ) : null}
-        {plan.bulkUpload ? (
-          <div className="flex items-center gap-2">
-            <Check className="h-4 w-4 shrink-0 text-lime-300" /> Bulk upload
-          </div>
-        ) : null}
-        <div className="flex items-center gap-2">
-          <Check className="h-4 w-4 shrink-0 text-lime-300" />{" "}
-          {plan.analyticsTier === "full" ? "Full analytics" : "Basic analytics"}
-        </div>
-        {plan.features.slice(0, 3).map((feature) => (
-          <div className="flex items-center gap-2" key={feature}>
-            <Check className="h-4 w-4 shrink-0 text-lime-300" />{" "}
-            {planFeatureLabel(feature)}
-          </div>
-        ))}
-      </div>
-      <Button
-        className="mt-5 w-full shrink-0"
-        disabled={current || pendingDowngrade || actionPending}
-        type="button"
-        variant={current || pendingDowngrade ? "secondary" : isDowngrade ? "secondary" : "primary"}
-        onClick={() =>
-          isDowngrade ? onDowngrade(plan.id) : onUpgrade(plan.id)
-        }
-      >
-        <CreditCard className="h-4 w-4" />
-        {current
-          ? "Current plan"
-          : pendingDowngrade
-            ? "Downgrade scheduled"
-            : actionPending
-              ? "Processing..."
-              : isDowngrade
-                ? "Schedule downgrade"
-                : isUpgrade
-                  ? "Upgrade"
-                  : "Subscribe"}
-      </Button>
-    </div>
-  );
-}
-
 export function BillingPage() {
   const [plansDialogOpen, setPlansDialogOpen] = useState(false);
+  const [billingInterval, setBillingInterval] =
+    useState<BillingInterval>("monthly");
   const queryClient = useQueryClient();
   const summary = useQuery({
     queryKey: ["billing-summary"],
@@ -295,10 +142,17 @@ export function BillingPage() {
     queryFn: () => api<Paginated<Invoice>>("/v1/billing/invoices"),
   });
   const checkout = useMutation({
-    mutationFn: async (planId: string) => {
-      const init = await post<CheckoutInitResponse>("/v1/billing/checkout", {
-        planId,
-      });
+    mutationFn: async ({
+      planId,
+      billingInterval: interval,
+    }: {
+      planId: string;
+      billingInterval: BillingInterval;
+    }) => {
+      const init = await post<CheckoutInitResponse>(
+        "/v1/billing/checkout",
+        checkoutRequest(planId, interval),
+      );
 
       if (!init.fullyCovered) {
         if (!init.publicKey || !init.email || !init.amountKobo) {
@@ -400,6 +254,9 @@ export function BillingPage() {
     availablePlans.find((plan) => plan.id === planId) ??
     availablePlans.find((plan) => plan.id === "starter") ??
     availablePlans[0];
+  const currentInterval =
+    (summary.data?.subscription?.billingInterval as BillingInterval | undefined) ??
+    "monthly";
   const pendingDowngrade = summary.data?.pendingDowngrade;
   const paymentMethod = summary.data?.paymentMethod;
   const billingActionPending = checkout.isPending || downgrade.isPending;
@@ -415,11 +272,22 @@ export function BillingPage() {
     currentPlan?.priceNgn ??
     summary.data?.subscription?.amountNgn ??
     0;
-  const nextChargeAmount = isTrialing ? renewAmount : (currentPlan?.priceNgn ?? renewAmount);
+  const renewInterval: BillingInterval =
+    trial?.renewInterval === "yearly" ? "yearly" : "monthly";
+  const currentAmount =
+    summary.data?.subscription?.amountNgn ??
+    (currentPlan ? planPriceForInterval(currentPlan, currentInterval) : 0);
+  const nextChargeAmount = isTrialing ? renewAmount : currentAmount;
+  const currentPriceSuffix = priceSuffix(currentInterval);
+  const renewalPriceSuffix = priceSuffix(renewInterval);
   const autoRenewBlocked =
     isTrialing &&
     (trial?.autoRenewBlockedUntilCard !== false) &&
     !paymentMethod;
+  const foundingBanner = foundingOfferBannerCopy({
+    isTrialing,
+    trialDays: trial?.trialDays,
+  });
 
   return (
     <div className="space-y-5">
@@ -448,7 +316,8 @@ export function BillingPage() {
             <p className="mt-2 text-[13px] font-medium text-lime-100/70">
               {trial?.trialDays ?? 90}-day founding trial
               {nextChargeDate ? ` · ends ${formatDate(nextChargeDate)}` : ""}
-              . You will renew at {formatNgn(renewAmount)}/mo after the trial.
+              . You will renew at {formatNgn(renewAmount)}
+              {renewalPriceSuffix} after the trial.
             </p>
           ) : (
             <p className="mt-2 text-[13px] font-medium text-lime-100/70">
@@ -478,20 +347,26 @@ export function BillingPage() {
                 Free
                 <span className="text-[13px] text-neutral-400">
                   {" "}
-                  · then {formatNgn(renewAmount)}/mo
+                  · then {formatNgn(renewAmount)}
+                  {renewalPriceSuffix}
                 </span>
               </>
             ) : (
               <>
-                {formatNgn(currentPlan?.priceNgn ?? 0)}
-                <span className="text-[13px] text-neutral-400">/mo</span>
+                {formatNgn(currentAmount)}
+                <span className="text-[13px] text-neutral-400">
+                  {currentPriceSuffix}
+                </span>
               </>
             )}
           </div>
           <Button
             disabled={!canChangePlan}
             type="button"
-            onClick={() => setPlansDialogOpen(true)}
+            onClick={() => {
+              setBillingInterval(currentInterval);
+              setPlansDialogOpen(true);
+            }}
           >
             Change plan
           </Button>
@@ -511,18 +386,45 @@ export function BillingPage() {
           Upgrades charge the price difference while your current billing cycle
           is active. Downgrades take effect at the next renewal date.
         </p>
+        {foundingBanner ? (
+          <div className="mb-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3">
+            <p className="text-[13px] font-[900!important] text-amber-100">
+              {FOUNDING_OFFER_HEADLINE}
+            </p>
+            <p className="mt-1 text-[12px] font-medium leading-5 text-amber-100/80">
+              {foundingBanner}
+            </p>
+          </div>
+        ) : null}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <BillingIntervalToggle
+            disabled={billingActionPending}
+            value={billingInterval}
+            onChange={setBillingInterval}
+          />
+          <p className="text-[12px] font-medium text-neutral-500">
+            {VAT_INCLUSIVE_COPY}
+          </p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {availablePlans.map((plan) => (
-            <PlanCard
+            <PlanComparisonCard
               actionPending={billingActionPending}
-              current={currentPlan?.id === plan.id}
+              billingInterval={billingInterval}
+              current={
+                currentPlan?.id === plan.id &&
+                currentInterval === billingInterval
+              }
+              currentInterval={currentInterval}
               currentPlan={currentPlan}
               key={plan.id}
               pendingDowngrade={pendingDowngrade?.planId === plan.id}
               periodEnd={nextChargeDate}
               plan={plan}
               onDowngrade={(planId) => downgrade.mutate(planId)}
-              onUpgrade={(planId) => checkout.mutate(planId)}
+              onUpgrade={(planId) =>
+                checkout.mutate({ planId, billingInterval })
+              }
             />
           ))}
         </div>
