@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1784902288129" clover="3.2.0">
-  <project timestamp="1784902288129" name="All files">
-    <metrics statements="234" coveredstatements="214" conditionals="58" coveredconditionals="51" methods="17" coveredmethods="16" elements="309" coveredelements="281" complexity="0" loc="234" ncloc="234" packages="1" files="4" classes="4"/>
+<coverage generated="1784903678792" clover="3.2.0">
+  <project timestamp="1784903678792" name="All files">
+    <metrics statements="234" coveredstatements="214" conditionals="57" coveredconditionals="50" methods="17" coveredmethods="16" elements="308" coveredelements="280" complexity="0" loc="234" ncloc="234" packages="1" files="4" classes="4"/>
     <file name="checkout-request.ts" path="/Users/adefemioseni/Desktop/Autoshowroom/admins/dealer/src/features/workspace/billing/checkout-request.ts">
       <metrics statements="6" coveredstatements="0" conditionals="1" coveredconditionals="1" methods="1" coveredmethods="1"/>
       <line num="4" count="0" type="stmt"/>
@@ -12,7 +12,7 @@
       <line num="9" count="0" type="stmt"/>
     </file>
     <file name="plan-comparison.ts" path="/Users/adefemioseni/Desktop/Autoshowroom/admins/dealer/src/features/workspace/billing/plan-comparison.ts">
-      <metrics statements="141" coveredstatements="141" conditionals="36" coveredconditionals="36" methods="8" coveredmethods="8"/>
+      <metrics statements="141" coveredstatements="141" conditionals="35" coveredconditionals="35" methods="8" coveredmethods="8"/>
       <line num="27" count="1" type="stmt"/>
       <line num="28" count="1" type="stmt"/>
       <line num="29" count="1" type="stmt"/>
@@ -142,16 +142,16 @@
       <line num="165" count="128" type="stmt"/>
       <line num="166" count="128" type="stmt"/>
       <line num="167" count="128" type="stmt"/>
-      <line num="168" count="8" type="cond" truecount="1" falsecount="0"/>
+      <line num="168" count="8" type="stmt"/>
       <line num="169" count="8" type="stmt"/>
       <line num="171" count="1" type="cond" truecount="1" falsecount="0"/>
       <line num="172" count="3" type="stmt"/>
       <line num="173" count="3" type="stmt"/>
       <line num="174" count="3" type="cond" truecount="1" falsecount="0"/>
-      <line num="175" count="38" type="cond" truecount="1" falsecount="0"/>
-      <line num="176" count="37" type="cond" truecount="1" falsecount="0"/>
-      <line num="177" count="37" type="cond" truecount="1" falsecount="0"/>
-      <line num="178" count="37" type="stmt"/>
+      <line num="175" count="49" type="cond" truecount="1" falsecount="0"/>
+      <line num="176" count="48" type="cond" truecount="1" falsecount="0"/>
+      <line num="177" count="48" type="cond" truecount="1" falsecount="0"/>
+      <line num="178" count="48" type="stmt"/>
       <line num="179" count="3" type="stmt"/>
       <line num="180" count="3" type="stmt"/>
     </file>

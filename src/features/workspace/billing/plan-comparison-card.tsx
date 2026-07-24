@@ -1,8 +1,8 @@
-import { Check, CreditCard, Layers } from "lucide-react";
+import { Check, CreditCard, Layers, Minus } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import type { Plan } from "@/features/workspace/types";
 import { cn, formatNgn } from "@/lib/utils";
-import { buildPlanComparisonRows } from "./plan-comparison";
+import { buildPlanComparisonRows, EM_DASH } from "./plan-comparison";
 import {
   ANNUAL_SAVINGS_COPY,
   type BillingInterval,
@@ -112,15 +112,29 @@ export function PlanComparisonCard({
         </p>
       ) : null}
       <div className="mt-4 flex flex-1 flex-col gap-2 text-[13px] font-semibold text-neutral-400">
-        {rows.map((row) => (
-          <div className="flex items-start gap-2" key={row.id}>
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-lime-300" />
-            <span>
-              <span className="text-neutral-500">{row.label}: </span>
-              <span className="text-neutral-300">{row.value}</span>
-            </span>
-          </div>
-        ))}
+        {rows.map((row) => {
+          const available = row.value !== EM_DASH;
+          const StatusIcon = available ? Check : Minus;
+          return (
+            <div className="flex items-start gap-2" key={row.id}>
+              <StatusIcon
+                aria-label={`${row.label} ${available ? "included" : "not included"}`}
+                className={cn(
+                  "mt-0.5 h-4 w-4 shrink-0",
+                  available ? "text-lime-300" : "text-neutral-600",
+                )}
+              />
+              <span>
+                <span className="text-neutral-500">{row.label}: </span>
+                <span
+                  className={available ? "text-neutral-300" : "text-neutral-600"}
+                >
+                  {row.value}
+                </span>
+              </span>
+            </div>
+          );
+        })}
       </div>
       <Button
         className="mt-5 w-full shrink-0"
