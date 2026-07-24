@@ -78,7 +78,7 @@ export function Sidebar({ suspended = false }: { suspended?: boolean }) {
           <div className="mt-auto rounded-[16px] border border-red-300/20 bg-red-400/10 p-4">
             <div className="text-[13px] font-[900!important] text-red-100">Account suspended</div>
             <p className="mt-2 text-[12px] font-medium leading-5 text-red-100/75">
-              Verify your email from Account settings to reactivate your dealer workspace and restore public listings.
+              Use the recovery panel to resend your verification email and restore access.
             </p>
           </div>
         ) : !emailVerified ? (
