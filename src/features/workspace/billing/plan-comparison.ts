@@ -165,7 +165,7 @@ export function buildPlanComparisonRows(plan: Plan): PlanComparisonRow[] {
     id,
     label: COMPARISON_ROW_LABELS[id],
     value: comparisonValueForRow(plan, id),
-  }));
+  })).filter((row) => row.value !== EM_DASH);
 }
 
 export function comparisonRowsExposeRawKeys(rows: PlanComparisonRow[]): boolean {

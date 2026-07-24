@@ -14,12 +14,23 @@ import {
 } from "./__fixtures__/plans";
 
 describe("plan-comparison", () => {
-  it("returns rows in the fixed canonical order", () => {
+  it("returns available rows in canonical order", () => {
     const rows = buildPlanComparisonRows(starterPlan);
-    expect(rows.map((row) => row.id)).toEqual(COMPARISON_ROW_ORDER);
+    expect(rows.map((row) => row.id)).toEqual([
+      "live_listings",
+      "staff_accounts",
+      "analytics",
+      "inspection_booking",
+      "whatsapp_handoff",
+      "verified_badge",
+      "dealer_profile",
+      "video_listings",
+      "lead_capture",
+    ]);
     expect(rows.map((row) => row.label)).toEqual(
-      COMPARISON_ROW_ORDER.map((id) => COMPARISON_ROW_LABELS[id]),
+      rows.map((row) => COMPARISON_ROW_LABELS[row.id]),
     );
+    expect(rows.every((row) => COMPARISON_ROW_ORDER.includes(row.id))).toBe(true);
   });
 
   it("maps starter structured limits and included flags", () => {
@@ -28,14 +39,14 @@ describe("plan-comparison", () => {
 
     expect(byLabel["Live listings"]).toBe("20");
     expect(byLabel["Staff accounts"]).toBe("1");
-    expect(byLabel["Featured placements per month"]).toBe("—");
-    expect(byLabel["Bulk upload"]).toBe("—");
-    expect(byLabel["Follow-up reminders"]).toBe("—");
+    expect(byLabel).not.toHaveProperty("Featured placements per month");
+    expect(byLabel).not.toHaveProperty("Bulk upload");
+    expect(byLabel).not.toHaveProperty("Follow-up reminders");
     expect(byLabel.Analytics).toBe("Basic");
     expect(byLabel["Inspection booking"]).toBe("Included");
     expect(byLabel["WhatsApp handoff"]).toBe("Included");
-    expect(byLabel["Monthly performance report"]).toBe("—");
-    expect(byLabel["Priority support"]).toBe("—");
+    expect(byLabel).not.toHaveProperty("Monthly performance report");
+    expect(byLabel).not.toHaveProperty("Priority support");
   });
 
   it("maps growth and prestige values without duplicate structured feature rows", () => {
@@ -94,12 +105,12 @@ describe("plan-comparison", () => {
     ).toBe(true);
   });
 
-  it("shows em dash when analytics tier is absent", () => {
+  it("omits analytics when its tier is absent", () => {
     const planWithoutAnalytics: Plan = {
       ...starterPlan,
       analyticsTier: undefined,
     };
     const rows = buildPlanComparisonRows(planWithoutAnalytics);
-    expect(rows.find((row) => row.id === "analytics")?.value).toBe("—");
+    expect(rows.find((row) => row.id === "analytics")).toBeUndefined();
   });
 });

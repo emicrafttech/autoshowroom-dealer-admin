@@ -31,6 +31,10 @@ describe("PlanComparisonCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Featured placements per month:/)).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Monthly performance report:/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Priority support:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/featured_slots/)).not.toBeInTheDocument();
   });
 
